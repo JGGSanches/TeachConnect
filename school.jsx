@@ -588,4 +588,274 @@ function SchoolRequests() {
   );
 }
 
-Object.assign(window, { SchoolHome, SchoolShell, NewRequest, RequestDetail, SchoolRequests, KPI, Stars, MiniCalendar, RequestRow, MatchRow, TLItem });
+/* =============== SCHOOL: BOOKINGS =============== */
+function SchoolBookings() {
+  const { requests, teachers, user, navigate, showToast } = useStore();
+  const [tab, setTab] = useState('upcoming');
+  const [subjectF, setSubjectF] = useState('');
+  const [gradeF, setGradeF] = useState('');
+
+  const sid = user?.schoolId || 's1';
+  const today = '2026-05-10';
+
+  const EXTRA = [
+    { id: 'bk1', schoolId: sid, subject: 'Deutsch', grade: '5./6. Primar', date: '2026-05-14', start: '08:00', end: '11:30', lessons: 4, status: 'confirmed', confirmedId: 't1', urgency: 'medium', note: '', suggestedIds: ['t1'], handoverComplete: true, createdAt: '2026-05-09T08:00:00' },
+    { id: 'bk2', schoolId: sid, subject: 'Mathematik', grade: '3./4. Primar', date: '2026-05-16', start: '10:00', end: '11:30', lessons: 2, status: 'confirmed', confirmedId: 't4', urgency: 'low', note: '', suggestedIds: ['t4'], handoverComplete: false, createdAt: '2026-05-09T09:00:00' },
+    { id: 'bk3', schoolId: sid, subject: 'NMG', grade: '3./4. Primar', date: '2026-05-07', start: '10:00', end: '11:30', lessons: 2, status: 'completed', confirmedId: 't3', urgency: 'low', note: '', suggestedIds: ['t3'], handoverComplete: true, createdAt: '2026-05-05T10:00:00', rating: 5 },
+    { id: 'bk4', schoolId: sid, subject: 'Musik', grade: '1./2. Primar', date: '2026-05-06', start: '13:00', end: '14:30', lessons: 2, status: 'completed', confirmedId: 't6', urgency: 'low', note: '', suggestedIds: ['t6'], handoverComplete: true, createdAt: '2026-05-04T09:00:00', rating: 4 },
+    { id: 'bk5', schoolId: sid, subject: 'Informatik', grade: 'Sek II', date: '2026-05-20', start: '08:00', end: '11:30', lessons: 4, status: 'confirmed', confirmedId: 't2', urgency: 'high', note: '', suggestedIds: ['t2'], handoverComplete: true, createdAt: '2026-05-09T11:00:00' },
+  ];
+
+  const allReqs = [...requests, ...EXTRA];
+  const base = allReqs.filter(r => r.schoolId === sid && (r.status === 'confirmed' || r.status === 'completed'));
+
+  const filtered = base.filter(r => {
+    const ok1 = tab === 'upcoming' ? r.status === 'confirmed' && r.date >= today
+      : tab === 'completed' ? r.status === 'completed'
+      : true;
+    return ok1 && (!subjectF || r.subject === subjectF) && (!gradeF || r.grade === gradeF);
+  });
+
+  const upcoming = base.filter(r => r.status === 'confirmed');
+  const done = base.filter(r => r.status === 'completed');
+  const totalLessons = base.reduce((s, r) => s + r.lessons, 0);
+  const allSubjects = [...new Set(base.map(r => r.subject))];
+  const allGrades = [...new Set(base.map(r => r.grade))];
+
+  return (
+    <SchoolShell active="/school/bookings">
+      <AppTopbar title="Buchungen" sub="Bestätigte Stellvertretungen"/>
+      <div className="page fade-in">
+        <div className="page-header">
+          <div>
+            <div className="page-title">Buchungen</div>
+            <div className="page-sub">Bestätigte und abgeschlossene Stellvertretungen</div>
+          </div>
+          <Button variant="primary" icon="plus" onClick={() => navigate('/school/new-request')}>Neue Stellvertretung</Button>
+        </div>
+
+        <div className="grid-4" style={{ marginBottom: 24 }}>
+          <KPI num={upcoming.length} label="Kommend" icon="calendar" tone="primary"/>
+          <KPI num={done.length} label="Abgeschlossen" icon="check-circle" tone="success"/>
+          <KPI num={totalLessons} label="Lektionen gesamt" icon="book" tone="accent"/>
+          <KPI num={`CHF ${(totalLessons * 92).toLocaleString('de-CH')}`} label="Gesamtkosten" icon="trending-up" tone="warn"/>
+        </div>
+
+        <div className="card">
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
+            <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+              <div className="tabs" style={{ flex: 1, minWidth: 0 }}>
+                {[{ v:'upcoming', l:`Kommend (${upcoming.length})` }, { v:'completed', l:`Abgeschlossen (${done.length})` }, { v:'all', l:'Alle' }]
+                  .map(t => <div key={t.v} className={`tab ${tab===t.v?'active':''}`} onClick={() => setTab(t.v)}>{t.l}</div>)}
+              </div>
+              <div className="row" style={{ gap: 8 }}>
+                <select className="select" style={{ height: 36, fontSize: 13 }} value={subjectF} onChange={e => setSubjectF(e.target.value)}>
+                  <option value="">Alle Fächer</option>
+                  {allSubjects.map(s => <option key={s}>{s}</option>)}
+                </select>
+                <select className="select" style={{ height: 36, fontSize: 13 }} value={gradeF} onChange={e => setGradeF(e.target.value)}>
+                  <option value="">Alle Stufen</option>
+                  {allGrades.map(g => <option key={g}>{g}</option>)}
+                </select>
+                <Button variant="ghost" size="sm" icon="filter" onClick={() => { setSubjectF(''); setGradeF(''); }}>Zurücksetzen</Button>
+              </div>
+            </div>
+          </div>
+          {filtered.length === 0 ? (
+            <div style={{ padding: 32 }}><EmptyState icon="calendar" title="Keine Buchungen in dieser Ansicht." description="Wechsle den Tab oder passe die Filter an."/></div>
+          ) : (
+            <table className="tbl">
+              <thead><tr><th>Datum</th><th>Fach / Stufe</th><th>Stellvertretung</th><th>Lektionen</th><th>Kosten</th><th>Übergabe</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                {filtered.sort((a,b) => a.date.localeCompare(b.date)).map(r => {
+                  const t = r.confirmedId ? teachers.find(x => x.id === r.confirmedId) : null;
+                  return (
+                    <tr key={r.id} onClick={() => navigate('/school/request/' + r.id)}>
+                      <td><div style={{ fontWeight:600, fontSize:13 }}>{formatDate(r.date)}</div><div className="t-tiny">{r.start}–{r.end}</div></td>
+                      <td><b>{r.subject}</b> · <span className="t-muted">{r.grade}</span></td>
+                      <td>{t ? <div className="row" style={{ gap:8 }}><Avatar name={t.name} size={24} k={t.avatarKey}/><div><div style={{ fontSize:13, fontWeight:600 }}>{t.name}</div><div className="t-tiny">★ {t.rating}</div></div></div> : <span className="t-muted">—</span>}</td>
+                      <td className="t-mono">{r.lessons}</td>
+                      <td className="t-mono">CHF {(r.lessons * 92).toFixed(2)}</td>
+                      <td>{r.handoverComplete ? <Pill variant="success"><Icon name="check" size={10}/>Ok</Pill> : <Pill variant="warn">Ausstehend</Pill>}</td>
+                      <td><StatusPill status={r.status}/></td>
+                      <td><Icon name="chevron-right" size={16} style={{ color:'var(--ink-4)' }}/></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </SchoolShell>
+  );
+}
+
+/* =============== SCHOOL: HANDOVER =============== */
+function SchoolHandover() {
+  const { navigate, showToast } = useStore();
+  const [selected, setSelected] = useState('ho1');
+
+  const INIT = [
+    { id:'ho1', cls:'7a', teacher:'Frau Müller', subject:'Mathematik', date:'2026-05-12', requestId:'r1',
+      note:'Tim braucht Sitz vorne. Lara hat Heuschnupfen-Attest. Mara wird um 11:00 abgeholt.',
+      docs:[
+        { key:'lp', label:'Lektionsplan', file:'lp-mathe-7a-kw19.pdf', ok:true },
+        { key:'kl', label:'Klassenliste', file:'klassenliste-7a.pdf', ok:true },
+        { key:'rp', label:'Schulhaus-Plan', file:'schulhaus-davos-plan.pdf', ok:true },
+        { key:'lm', label:'Lehrmittel', file:'Mathbu.ch 7 – Kap. 6', ok:true },
+        { key:'ho', label:'Hausordnung', file:'hausordnung-davos.pdf', ok:true },
+      ],
+    },
+    { id:'ho2', cls:'6b', teacher:'Herr Schneider', subject:'Sport', date:'2026-05-12', requestId:'r2',
+      note:'',
+      docs:[
+        { key:'lp', label:'Lektionsplan', file:'lp-sport-6b.pdf', ok:true },
+        { key:'kl', label:'Klassenliste', file:'klassenliste-6b.pdf', ok:true },
+        { key:'rp', label:'Turnhallen-Plan', file:'', ok:false },
+        { key:'lm', label:'Geräte-Übersicht', file:'', ok:false },
+        { key:'ho', label:'Hausordnung', file:'hausordnung-davos.pdf', ok:true },
+      ],
+    },
+    { id:'ho3', cls:'9c', teacher:'Frau Ritter', subject:'Englisch', date:'2026-05-15', requestId:'r7',
+      note:'Prüfung nächste Woche – nicht zu viel neues Stoff.',
+      docs:[
+        { key:'lp', label:'Lektionsplan', file:'lp-englisch-9c.pdf', ok:true },
+        { key:'kl', label:'Klassenliste', file:'klassenliste-9c.pdf', ok:true },
+        { key:'rp', label:'Schulhaus-Plan', file:'schulhaus-davos-plan.pdf', ok:true },
+        { key:'lm', label:'Lehrmittel', file:'', ok:false },
+        { key:'ho', label:'Hausordnung', file:'hausordnung-davos.pdf', ok:true },
+      ],
+    },
+    { id:'ho4', cls:'5a', teacher:'Frau Berger', subject:'NMG', date:'2026-05-19', requestId:'',
+      note:'Ruhige Klasse. Bitte Hefte einsammeln.',
+      docs:[
+        { key:'lp', label:'Lektionsplan', file:'lp-nmg-5a.pdf', ok:true },
+        { key:'kl', label:'Klassenliste', file:'klassenliste-5a.pdf', ok:true },
+        { key:'rp', label:'Schulhaus-Plan', file:'schulhaus-davos-plan.pdf', ok:true },
+        { key:'lm', label:'Lehrmittel', file:'Natur & Mensch 5/6, Kap. 4', ok:true },
+        { key:'ho', label:'Hausordnung', file:'hausordnung-davos.pdf', ok:true },
+      ],
+    },
+  ];
+
+  const [classes, setClasses] = useState(INIT);
+  const [noteVal, setNoteVal] = useState({});
+
+  const sel = classes.find(c => c.id === selected);
+  const complete = c => c.docs.every(d => d.ok);
+
+  const markDoc = (docKey) => {
+    setClasses(cls => cls.map(c => c.id === selected
+      ? { ...c, docs: c.docs.map(d => d.key === docKey ? { ...d, ok: true, file: d.label + '-neu.pdf' } : d) }
+      : c));
+    showToast('Dokument hochgeladen.');
+  };
+
+  const markComplete = () => {
+    setClasses(cls => cls.map(c => c.id === selected ? { ...c, docs: c.docs.map(d => ({ ...d, ok:true, file: d.file || d.label + '.pdf' })) } : c));
+    showToast('Übergabe als vollständig markiert.');
+  };
+
+  return (
+    <SchoolShell active="/school/handover">
+      <AppTopbar title="Unterrichtsübergabe" sub="Materialien für Stellvertretungen"/>
+      <div className="page fade-in">
+        <div className="page-header">
+          <div>
+            <div className="page-title">Unterrichtsübergabe</div>
+            <div className="page-sub">Lektionspläne, Klassenlisten und Notizen verwalten</div>
+          </div>
+          <div className="row">
+            <Button variant="outline" icon="upload" onClick={() => showToast('Upload gestartet.')}>Material hochladen</Button>
+            <Button variant="primary" icon="plus" onClick={() => navigate('/school/new-request')}>Neue Anfrage</Button>
+          </div>
+        </div>
+
+        <div className="grid-2" style={{ gridTemplateColumns:'1fr 1.7fr', gap:24, alignItems:'flex-start' }}>
+          <div className="col" style={{ gap:10 }}>
+            <div className="card" style={{ padding:'12px 16px', background:'var(--surface-2)' }}>
+              <div className="t-tiny" style={{ fontWeight:600 }}>{classes.filter(c => complete(c)).length}/{classes.length} Übergaben vollständig</div>
+              <div className="match-bar" style={{ marginTop:6 }}>
+                <div className="match-bar-fill" style={{ width:`${Math.round(classes.filter(c=>complete(c)).length/classes.length*100)}%`, background:'var(--success)' }}/>
+              </div>
+            </div>
+            {classes.map(c => {
+              const done = c.docs.filter(d => d.ok).length;
+              const full = complete(c);
+              return (
+                <div key={c.id} onClick={() => setSelected(c.id)}
+                  className="card"
+                  style={{ padding:16, cursor:'pointer', border: selected===c.id ? '2px solid var(--primary)' : '1px solid var(--border)', background: selected===c.id ? 'var(--primary-50)' : 'var(--surface)' }}>
+                  <div className="spread">
+                    <div className="row" style={{ gap:10 }}>
+                      <div style={{ width:38, height:38, borderRadius:10, background:'var(--primary-50)', color:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:14, flexShrink:0 }}>{c.cls}</div>
+                      <div>
+                        <div style={{ fontWeight:600, fontSize:14 }}>{c.subject} · Kl. {c.cls}</div>
+                        <div className="t-tiny">{c.teacher} · {formatDate(c.date)}</div>
+                      </div>
+                    </div>
+                    {full ? <Pill variant="success"><Icon name="check" size={10}/>OK</Pill> : <Pill variant="warn">{done}/{c.docs.length}</Pill>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {sel && (
+            <div className="card" style={{ padding:24 }}>
+              <div className="spread" style={{ marginBottom:20 }}>
+                <div>
+                  <div className="h-2">{sel.subject} · Klasse {sel.cls}</div>
+                  <div className="t-muted" style={{ marginTop:4 }}>{sel.teacher} · {formatDate(sel.date)}</div>
+                </div>
+                {complete(sel) ? <Pill variant="success">Vollständig</Pill> : <Pill variant="warn">Bitte ergänzen</Pill>}
+              </div>
+
+              <div className="col" style={{ gap:8 }}>
+                {sel.docs.map(d => (
+                  <div key={d.key} className="row" style={{ padding:12, border:'1px solid var(--border)', borderRadius:10, background: d.ok ? 'var(--surface)' : 'oklch(98.5% 0.01 30)' }}>
+                    <div style={{ width:32, height:32, borderRadius:8, background: d.ok ? 'var(--success-50)' : 'var(--surface-3)', color: d.ok ? 'var(--success)' : 'var(--ink-4)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <Icon name={d.ok ? 'check' : 'upload'} size={14}/>
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:600 }}>{d.label}</div>
+                      {d.file ? <div className="t-tiny">{d.file}</div> : <div className="t-tiny" style={{ color:'var(--danger)' }}>Noch nicht hinterlegt</div>}
+                    </div>
+                    {d.ok
+                      ? <div className="row" style={{ gap:4 }}>
+                          <Button variant="ghost" size="sm" icon="eye" onClick={() => showToast(`${d.label} geöffnet.`)}>Ansehen</Button>
+                          <Button variant="ghost" size="sm" icon="edit" onClick={() => showToast(`${d.label} ersetzt.`)}>Ersetzen</Button>
+                        </div>
+                      : <Button variant="outline" size="sm" icon="upload" onClick={() => markDoc(d.key)}>Hochladen</Button>
+                    }
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ marginTop:18 }}>
+                <div className="h-3" style={{ fontSize:14, marginBottom:8 }}>Spezielle Hinweise</div>
+                <textarea className="textarea" rows={3}
+                  value={noteVal[sel.id] !== undefined ? noteVal[sel.id] : sel.note}
+                  onChange={e => setNoteVal(n => ({ ...n, [sel.id]: e.target.value }))}
+                  placeholder="Besonderheiten, Schüler:innen mit spez. Bedürfnissen, Klassenregeln…"/>
+              </div>
+
+              <div className="row" style={{ marginTop:16, justifyContent:'space-between' }}>
+                {sel.requestId
+                  ? <Button variant="ghost" size="sm" iconRight="arrow-right" onClick={() => navigate('/school/request/' + sel.requestId)}>Zur Anfrage</Button>
+                  : <div/>}
+                <div className="row">
+                  <Button variant="outline" onClick={() => showToast('Entwurf gespeichert.')}>Speichern</Button>
+                  <Button variant="primary" icon="check" onClick={markComplete}>Als vollständig markieren</Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </SchoolShell>
+  );
+}
+
+Object.assign(window, { SchoolHome, SchoolShell, NewRequest, RequestDetail, SchoolRequests, SchoolBookings, SchoolHandover, KPI, Stars, MiniCalendar, RequestRow, MatchRow, TLItem });

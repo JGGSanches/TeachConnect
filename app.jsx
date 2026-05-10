@@ -26,8 +26,8 @@ function Router() {
   if (route === '/school/requests') return <SchoolRequests/>;
   if (route === '/school/new-request') return <NewRequest/>;
   if (route.startsWith('/school/request/')) return <RequestDetail id={route.split('/')[3]}/>;
-  if (route === '/school/bookings') return <SchoolRequests/>;
-  if (route === '/school/handover') return <SchoolRequests/>;
+  if (route === '/school/bookings') return <SchoolBookings/>;
+  if (route === '/school/handover') return <SchoolHandover/>;
   if (route === '/school/teachers') return <SchoolPool/>;
   if (route === '/school/profile') return <SchoolProfile/>;
 
@@ -42,10 +42,18 @@ function Router() {
 
   // leadership
   if (route === '/leadership') return <LeadershipHome/>;
-  if (route.startsWith('/leadership')) return <LeadershipHome/>;
+  if (route === '/leadership/absences') return <LeadershipAbsences/>;
+  if (route === '/leadership/bookings') return <LeadershipBookings/>;
+  if (route === '/leadership/team') return <LeadershipTeam/>;
+  if (route === '/leadership/stats') return <LeadershipStats/>;
+  if (route === '/leadership/profile') return <LeadershipProfile/>;
 
   // admin
   if (route === '/admin') return <AdminHome/>;
+  if (route === '/admin/schools') return <AdminSchools/>;
+  if (route === '/admin/teachers') return <AdminTeachers/>;
+  if (route === '/admin/bookings') return <AdminBookings/>;
+  if (route === '/admin/billing') return <AdminBilling/>;
   if (route.startsWith('/admin')) return <AdminHome/>;
 
   return <Landing/>;

@@ -64,6 +64,10 @@ const Icon = ({ name, size = 18, stroke = 1.75, ...rest }) => {
     case 'history': return <svg {...props}><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l3 2"/></svg>;
     case 'list-check': return <svg {...props}><path d="M3 6l1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17M11 6h10M11 12h10M11 18h10"/></svg>;
     case 'arrow-up-right': return <svg {...props}><path d="M7 17L17 7M8 7h9v9"/></svg>;
+    case 'download': return <svg {...props}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>;
+    case 'alert-triangle': return <svg {...props}><path d="M10.3 3.3L2 19h20L13.7 3.3a2 2 0 0 0-3.4 0z"/><path d="M12 9v5M12 17h.01"/></svg>;
+    case 'credit-card': return <svg {...props}><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>;
+    case 'x-circle': return <svg {...props}><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6M15 9l-6 6"/></svg>;
     default: return null;
   }
 };
