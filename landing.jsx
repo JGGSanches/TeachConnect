@@ -509,72 +509,67 @@ function PricingPage() {
           <p className="section-lede">Pro Schulstandort, monatlich kündbar. 30 Tage kostenlos testen.</p>
 
           <div className="price-grid">
-            <div className="price-card">
-              <div>
-                <div className="t-eyebrow" style={{ color: 'var(--ink-3)' }}>Kleine Schulen</div>
-                <div className="t-muted" style={{ marginTop: 4 }}>Bis 200 Schüler:innen</div>
-              </div>
-              <div className="price-amount">CHF 49<small> / Monat</small></div>
-              <ul className="checklist">
-                <li><Icon name="check" size={16}/>Bis 30 Anfragen / Monat</li>
-                <li><Icon name="check" size={16}/>Bis 5 Mitarbeitende</li>
-                <li><Icon name="check" size={16}/>Smart Matching</li>
-                <li><Icon name="check" size={16}/>Unterrichtsübergabe</li>
-                <li><Icon name="check" size={16}/>E-Mail-Support</li>
-              </ul>
-              <Button variant="outline" iconRight="arrow-right" onClick={() => navigate('/register')}>Starten</Button>
-            </div>
-
             <div className="price-card featured">
               <div>
-                <Pill variant="primary">Beliebt</Pill>
-                <div className="t-eyebrow" style={{ color: 'var(--ink-3)', marginTop: 12 }}>Mittlere Schulen</div>
-                <div className="t-muted" style={{ marginTop: 4 }}>200–600 Schüler:innen</div>
+                <Pill variant="primary">Für Schulen</Pill>
+                <div className="t-eyebrow" style={{ color: 'var(--ink-3)', marginTop: 12 }}>Schul-Abonnement</div>
+                <div className="t-muted" style={{ marginTop: 4 }}>Pro Schulstandort</div>
               </div>
-              <div className="price-amount">CHF 79<small> / Monat</small></div>
+              <div>
+                <div className="price-amount">CHF 75<small> / Monat</small></div>
+                <div className="t-tiny" style={{ marginTop: 4, color: 'var(--ink-3)' }}>oder CHF 900 / Jahr</div>
+              </div>
               <ul className="checklist">
-                <li><Icon name="check" size={16}/>Unbegrenzte Anfragen</li>
-                <li><Icon name="check" size={16}/>Bis 25 Mitarbeitende</li>
-                <li><Icon name="check" size={16}/>Schulhaus-Dashboard</li>
-                <li><Icon name="check" size={16}/>Audit-Log & Export</li>
-                <li><Icon name="check" size={16}/>Telefon-Support</li>
+                <li><Icon name="check" size={16}/>Stellvertretungsanfragen</li>
+                <li><Icon name="check" size={16}/>Smart Matching</li>
+                <li><Icon name="check" size={16}/>Unterrichtsübergabe</li>
+                <li><Icon name="check" size={16}/>Administrationsfunktionen</li>
+                <li><Icon name="check" size={16}/>30 Tage kostenlos testen</li>
               </ul>
               <Button variant="primary" iconRight="arrow-right" onClick={() => navigate('/register')}>Starten</Button>
             </div>
 
             <div className="price-card">
               <div>
-                <div className="t-eyebrow" style={{ color: 'var(--ink-3)' }}>Schulverbund</div>
-                <div className="t-muted" style={{ marginTop: 4 }}>Mehrere Standorte / Gemeinde</div>
+                <Pill variant="accent">Für Lehrpersonen</Pill>
+                <div className="t-eyebrow" style={{ color: 'var(--ink-3)', marginTop: 12 }}>Kostenlose Registrierung</div>
+                <div className="t-muted" style={{ marginTop: 4 }}>Jetzt & immer gratis</div>
               </div>
-              <div className="price-amount" style={{ fontSize: 32 }}>Individuell</div>
+              <div className="price-amount">CHF 0<small> / Monat</small></div>
               <ul className="checklist">
-                <li><Icon name="check" size={16}/>Multi-Standort-Setup</li>
-                <li><Icon name="check" size={16}/>SSO & SAML</li>
-                <li><Icon name="check" size={16}/>SLA & Onboarding</li>
-                <li><Icon name="check" size={16}/>Eigener Lehrpersonen-Pool</li>
-                <li><Icon name="check" size={16}/>Dedicated CSM</li>
+                <li><Icon name="check" size={16}/>Profil & Verfügbarkeitskalender</li>
+                <li><Icon name="check" size={16}/>Direkte Anfragen erhalten</li>
+                <li><Icon name="check" size={16}/>Bewerbungen & Bewertungen</li>
+                <li><Icon name="check" size={16}/>Keine versteckten Kosten</li>
               </ul>
-              <Button variant="outline" iconRight="arrow-right">Offerte anfragen</Button>
+              <Button variant="outline" iconRight="arrow-right" onClick={() => navigate('/register')}>Registrieren</Button>
             </div>
           </div>
 
-          <div className="card" style={{ marginTop: 32, padding: 28, display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 280 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16, marginTop: 32, maxWidth: 840, margin: '32px auto 0' }}>
+            <div className="card" style={{ padding: 28 }}>
               <div className="row" style={{ gap: 8, marginBottom: 8 }}>
-                <Pill variant="accent">Service-Fee</Pill>
-                <span className="t-tiny">Optional</span>
+                <Pill variant="accent">Vermittlungsgebühr</Pill>
               </div>
-              <div className="h-3">CHF 4 pro erfolgreich vermitteltem Einsatz</div>
-              <p className="t-muted" style={{ marginTop: 6 }}>Wird nur bei tatsächlich besetztem Einsatz fällig. Im Tarif „Schulverbund" auf Wunsch deaktivierbar.</p>
+              <div className="h-3">12.5 % des Stellvertretungs-Lohnes</div>
+              <p className="t-muted" style={{ marginTop: 6 }}>Pro erfolgreich vermitteltem Einsatz fällig. Die Einnahmen wachsen direkt mit der Anzahl erfolgreicher Einsätze.</p>
             </div>
-            <Button variant="ghost" iconRight="arrow-right">Detaillierte Konditionen</Button>
+
+            <div className="card" style={{ padding: 28 }}>
+              <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+                <Pill variant="accent">Inserate-Bundle</Pill>
+              </div>
+              <div className="h-3">CHF 30 für 5 Inserate</div>
+              <p className="t-muted" style={{ marginTop: 6 }}>Einfache Veröffentlichung mehrerer Stellvertretungsanfragen auf einmal.</p>
+            </div>
           </div>
 
           <div style={{ marginTop: 64 }}>
             <div className="t-eyebrow" style={{ textAlign: 'center', marginBottom: 16 }}>Häufige Fragen</div>
             {[
               { q: 'Müssen Lehrpersonen bezahlen?', a: 'Nein. Lehrpersonen nutzen TeachConnect komplett kostenlos – inklusive Profil, Verfügbarkeitskalender und Bewertungen.' },
+              { q: 'Wie berechnet sich die Vermittlungsgebühr?', a: 'Bei jeder erfolgreichen Vermittlung berechnen wir 12.5 % des Lohnes der Stellvertretungslehrperson. Die Gebühr wird nur bei tatsächlich besetzten Einsätzen fällig.' },
+              { q: 'Was beinhalten die Inserate-Bundles?', a: 'Ein Bundle mit 5 Inseraten kostet CHF 30 und ermöglicht Schulen die einfache Veröffentlichung mehrerer Stellvertretungsanfragen.' },
               { q: 'Was, wenn keine passende Person gefunden wird?', a: 'Sie können die Anfrage jederzeit weiter veröffentlichen. Im Pilot lag die Besetzungsquote bei 96 % – im Schnitt unter 4 Stunden.' },
               { q: 'Wie funktioniert die Verifikation?', a: 'Wir prüfen Ausweis, Strafregisterauszug und Lehrdiplom (oder gleichwertige Qualifikation). Verifizierte Profile tragen ein Badge.' },
               { q: 'Wo werden Daten gespeichert?', a: 'Ausschliesslich in der Schweiz, bei einem ISO-27001-zertifizierten Anbieter. Wir sind DSG-konform und arbeiten mit einem Schweizer Datenschutzberater.' },

@@ -167,7 +167,7 @@ function SchoolProfile() {
               <div className="t-muted" style={{ marginTop: 4 }}>{sch.address} · {sch.size} Schüler:innen</div>
               <div className="row" style={{ marginTop: 12, gap: 8 }}>
                 <Pill variant="success"><Icon name="shield-check" size={11}/>Verifiziert</Pill>
-                <Pill variant="primary">Plan: Mittlere Schulen · CHF 79/Mt</Pill>
+                <Pill variant="primary">Schul-Abonnement · CHF 75/Mt</Pill>
               </div>
             </div>
             <Button variant="outline" icon="edit">Bearbeiten</Button>
