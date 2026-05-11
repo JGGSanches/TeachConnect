@@ -21,6 +21,7 @@ function SchoolShell({ children, active }) {
 
 function SchoolHome() {
   const { requests, navigate, schools, teachers, user, setModal, inserateUsed, inserateLimit, setInserateUsed, showToast } = useStore();
+  const isMobile = useIsMobile();
   const school = schools.find(s => s.id === user.schoolId);
   const myReqs = requests.filter(r => r.schoolId === school.id);
   const open = myReqs.filter(r => r.status === 'open' || r.status === 'matched');
@@ -67,7 +68,7 @@ function SchoolHome() {
           <Button variant="ghost" size="sm" onClick={() => navigate('/school/finances')}>Finanzen</Button>
         </div>
 
-        <div className="grid-2" style={{ alignItems: 'flex-start', gridTemplateColumns: '1.4fr 1fr' }}>
+        <div className="grid-2" style={{ alignItems: 'flex-start', gridTemplateColumns: isMobile ? '1fr' : '1.4fr 1fr' }}>
           <div className="card">
             <div className="spread" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
               <div className="h-3">Offene Anfragen</div>
@@ -238,6 +239,7 @@ function RequestRow({ r, onClick, school }) {
 /* =============== NEW REQUEST FLOW =============== */
 function NewRequest() {
   const { navigate, requests, setRequests, user, showToast, subjects, grades, inserateUsed, inserateLimit, setInserateUsed } = useStore();
+  const isMobile = useIsMobile();
   const [s, setS] = useState({
     subject: 'Mathematik', grade: 'Sek I', date: '2026-05-12',
     start: '08:00', end: '11:30', lessons: 4,
@@ -283,7 +285,7 @@ function NewRequest() {
           <span className="t-tiny">Schritt 1 von 2</span>
         </div>
 
-        <div className="grid-2" style={{ gridTemplateColumns: '1.4fr 1fr', gap: 24, alignItems: 'flex-start' }}>
+        <div className="grid-2" style={{ gridTemplateColumns: isMobile ? '1fr' : '1.4fr 1fr', gap: 24, alignItems: 'flex-start' }}>
           <div className="card" style={{ padding: 28 }}>
             <div className="h-2">Was wird benötigt?</div>
             <p className="t-muted" style={{ marginTop: 4, marginBottom: 24 }}>Diese Angaben helfen TeachConnect, passende Lehrpersonen vorzuschlagen.</p>
@@ -406,6 +408,7 @@ function NewRequest() {
 /* =============== REQUEST DETAIL =============== */
 function RequestDetail({ id }) {
   const { requests, setRequests, navigate, schools, teachers, user, showToast } = useStore();
+  const isMobile = useIsMobile();
   const r = requests.find(x => x.id === id);
   if (!r) return <SchoolShell active="/school/requests"><AppTopbar title="Nicht gefunden"/><div className="page">Anfrage nicht gefunden.</div></SchoolShell>;
 
@@ -426,7 +429,7 @@ function RequestDetail({ id }) {
           <Button variant="ghost" size="sm" icon="arrow-left" onClick={() => navigate('/school/requests')}>Zurück zu Anfragen</Button>
         </div>
 
-        <div className="grid-2" style={{ gridTemplateColumns: '1.6fr 1fr', gap: 24, alignItems: 'flex-start' }}>
+        <div className="grid-2" style={{ gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr', gap: 24, alignItems: 'flex-start' }}>
           <div className="col" style={{ gap: 16 }}>
             <div className="card" style={{ padding: 24 }}>
               <div className="spread">
@@ -733,6 +736,7 @@ function SchoolBookings() {
 /* =============== SCHOOL: HANDOVER =============== */
 function SchoolHandover() {
   const { navigate, showToast } = useStore();
+  const isMobile = useIsMobile();
   const [selected, setSelected] = useState('ho1');
 
   const INIT = [
@@ -811,7 +815,7 @@ function SchoolHandover() {
           </div>
         </div>
 
-        <div className="grid-2" style={{ gridTemplateColumns:'1fr 1.7fr', gap:24, alignItems:'flex-start' }}>
+        <div className="grid-2" style={{ gridTemplateColumns: isMobile ? '1fr' : '1fr 1.7fr', gap:24, alignItems:'flex-start' }}>
           <div className="col" style={{ gap:10 }}>
             <div className="card" style={{ padding:'12px 16px', background:'var(--surface-2)' }}>
               <div className="t-tiny" style={{ fontWeight:600 }}>{classes.filter(c => complete(c)).length}/{classes.length} Übergaben vollständig</div>

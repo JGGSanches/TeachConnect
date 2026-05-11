@@ -13,6 +13,7 @@ function LeadershipShell({ children, active }) {
 
 function LeadershipHome() {
   const { requests, schools, teachers, navigate, user } = useStore();
+  const isMobile = useIsMobile();
   const sch = schools.find(s => s.id === user.schoolId) || schools[0];
   const all = requests.filter(r => r.schoolId === sch.id);
 
@@ -45,7 +46,7 @@ function LeadershipHome() {
           <KPI num="CHF 11'420" label="Ausgaben Mai" icon="trending-up" tone="warn"/>
         </div>
 
-        <div className="grid-2" style={{ gridTemplateColumns: '1.6fr 1fr', alignItems: 'flex-start', gap: 24 }}>
+        <div className="grid-2" style={{ gridTemplateColumns: isMobile ? '1fr' : '1.6fr 1fr', alignItems: 'flex-start', gap: 24 }}>
           <div className="card">
             <div className="spread" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
               <div className="h-3">Aktive Absenzen</div>
@@ -191,6 +192,7 @@ function AdminShell({ children, active }) {
 
 function AdminHome() {
   const { schools, teachers, requests } = useStore();
+  const isMobile = useIsMobile();
   return (
     <AdminShell active="/admin">
       <AppTopbar title="Plattform-Admin" sub="Operations & Health"/>
@@ -213,7 +215,7 @@ function AdminHome() {
           <KPI num="CHF 38'420" label="MRR" trend="↑ 18% MoM" icon="trending-up" tone="warn"/>
         </div>
 
-        <div className="grid-2" style={{ gridTemplateColumns: '1.4fr 1fr', alignItems: 'flex-start', gap: 24 }}>
+        <div className="grid-2" style={{ gridTemplateColumns: isMobile ? '1fr' : '1.4fr 1fr', alignItems: 'flex-start', gap: 24 }}>
           <div className="card">
             <div className="spread" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
               <div className="h-3">Letzte Buchungen</div>

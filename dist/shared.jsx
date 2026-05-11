@@ -1,6 +1,16 @@
 /* global React */
 const { useState, useEffect, useMemo, useRef, createContext, useContext } = React;
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth <= 640);
+  useEffect(() => {
+    const fn = () => setMobile(window.innerWidth <= 640);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+  return mobile;
+}
+
 /* =============== ICONS (inline SVG, original) =============== */
 const Icon = ({ name, size = 18, stroke = 1.75, ...rest }) => {
   const props = {
@@ -149,16 +159,26 @@ function formatRelativeDate(iso) {
   return formatDate(iso);
 }
 
+const NOTIFICATIONS = [
+  { id:'n1', type:'request', title:'Neue Anfrage: Mathematik Sek I', body:'Schule Davos Platz sucht Vertretung für 12. Mai', time:'vor 12 Min.', read:false, link:'/school/request/r1' },
+  { id:'n2', type:'booking', title:'Buchung bestätigt', body:'Lara Hofer hat Deutsch Sek II angenommen', time:'vor 1 Std.', read:false, link:'/school/request/r7' },
+  { id:'n3', type:'handover', title:'Übergabe bereit', body:'Lektionsplan Mathematik 7a wurde hinterlegt', time:'vor 2 Std.', read:false, link:'/school/handover' },
+  { id:'n4', type:'rating', title:'Neue Bewertung ★ 5', body:'Schule Davos Platz hat dich mit 5★ bewertet', time:'gestern', read:true, link:'/teacher/profile' },
+  { id:'n5', type:'payment', title:'Zahlung erhalten', body:'CHF 386.00 für Einsatz 9. Mai 2026 gutgeschrieben', time:'gestern', read:true, link:'/teacher/history' },
+];
+
 function StoreProvider({ children }) {
-  const [route, setRoute] = useState(() => {
-    return localStorage.getItem('tc.route') || '/';
-  });
+  const [route, setRoute] = useState(() => localStorage.getItem('tc.route') || '/');
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('tc.user') || 'null'); } catch { return null; }
   });
   const [requests, setRequests] = useState(REQUESTS);
   const [toast, setToast] = useState(null);
   const [modal, setModal] = useState(null);
+  const [inserateUsed, setInserateUsed] = useState(7);
+  const inserateLimit = 10;
+  const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => { localStorage.setItem('tc.route', route); }, [route]);
   useEffect(() => { localStorage.setItem('tc.user', JSON.stringify(user)); }, [user]);
@@ -175,15 +195,18 @@ function StoreProvider({ children }) {
     requests, setRequests, schools: SCHOOLS, teachers: TEACHERS,
     subjects: SUBJECTS, grades: GRADES,
     showToast, toast, modal, setModal,
+    inserateUsed, setInserateUsed, inserateLimit,
+    notifications, setNotifications,
+    mobileMenuOpen, setMobileMenuOpen,
   };
   return (
     <StoreCtx.Provider value={value}>
       {children}
       {toast && (
-        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 100 }} className="fade-in">
-          <div className="card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: 'var(--shadow-3)' }}>
-            <Icon name="check-circle" size={18} style={{ color: 'var(--success)' }}/>
-            <span style={{ fontSize: 14 }}>{toast.msg}</span>
+        <div style={{ position:'fixed', bottom:24, right:24, zIndex:300 }} className="fade-in">
+          <div className="card" style={{ padding:'12px 16px', display:'flex', alignItems:'center', gap:10, boxShadow:'var(--shadow-3)' }}>
+            <Icon name={toast.kind==='error'?'x-circle':'check-circle'} size={18} style={{ color: toast.kind==='error'?'var(--danger)':'var(--success)' }}/>
+            <span style={{ fontSize:14 }}>{toast.msg}</span>
           </div>
         </div>
       )}
@@ -252,31 +275,90 @@ function EmptyState({ icon = 'inbox', title, description, action }) {
   );
 }
 
+/* =============== NOTIFICATION DROPDOWN =============== */
+function NotificationDropdown({ onClose }) {
+  const { notifications, setNotifications, navigate } = useStore();
+  const iconMap = { request:'inbox', booking:'check-circle', handover:'book', rating:'star', payment:'zap' };
+  const markAll = () => setNotifications(ns => ns.map(n => ({ ...n, read:true })));
+  const handleClick = (n) => {
+    setNotifications(ns => ns.map(x => x.id===n.id ? { ...x, read:true } : x));
+    navigate(n.link); onClose();
+  };
+  return (
+    <div style={{ position:'fixed', top:60, right:16, width:380, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:16, boxShadow:'var(--shadow-3)', zIndex:201 }} onClick={e => e.stopPropagation()}>
+      <div className="spread" style={{ padding:'14px 18px', borderBottom:'1px solid var(--border)' }}>
+        <div className="row" style={{ gap:8 }}>
+          <div className="h-3" style={{ fontSize:15 }}>Benachrichtigungen</div>
+          {notifications.filter(n=>!n.read).length > 0 && <Pill variant="danger">{notifications.filter(n=>!n.read).length}</Pill>}
+        </div>
+        <Button variant="ghost" size="sm" onClick={markAll}>Alle gelesen</Button>
+      </div>
+      <div style={{ maxHeight:400, overflowY:'auto' }}>
+        {notifications.map(n => (
+          <div key={n.id} onClick={() => handleClick(n)} style={{ padding:'12px 18px', borderBottom:'1px solid var(--border)', cursor:'pointer', display:'flex', gap:12, alignItems:'flex-start', background:n.read?'transparent':'var(--primary-50)' }}>
+            <div style={{ width:32, height:32, borderRadius:9, background:n.read?'var(--surface-2)':'var(--primary-100)', color:n.read?'var(--ink-3)':'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <Icon name={iconMap[n.type]||'bell'} size={15}/>
+            </div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontWeight:n.read?400:600, fontSize:13 }}>{n.title}</div>
+              <div className="t-muted" style={{ fontSize:12, marginTop:2 }}>{n.body}</div>
+              <div className="t-tiny" style={{ marginTop:4 }}>{n.time}</div>
+            </div>
+            {!n.read && <div style={{ width:7, height:7, borderRadius:999, background:'var(--primary)', flexShrink:0, marginTop:6 }}/>}
+          </div>
+        ))}
+      </div>
+      <div style={{ padding:'10px 18px', textAlign:'center', borderTop:'1px solid var(--border)' }}>
+        <Button variant="ghost" size="sm" onClick={onClose}>Schliessen</Button>
+      </div>
+    </div>
+  );
+}
+
 /* =============== APP TOPBAR (signed in) =============== */
 function AppTopbar({ title, sub, search }) {
-  const { user, navigate, setUser } = useStore();
+  const { user, navigate, setUser, notifications, setMobileMenuOpen } = useStore();
+  const [showNotif, setShowNotif] = useState(false);
+  const unread = (notifications||[]).filter(n => !n.read).length;
   return (
     <div className="topbar">
-      <div className="row" style={{ gap: 16, flex: 1 }}>
-        <div>
-          <div className="h-3" style={{ fontSize: 16 }}>{title}</div>
-          {sub && <div className="t-muted" style={{ fontSize: 12 }}>{sub}</div>}
+      {showNotif && <div style={{ position:'fixed', inset:0, zIndex:200 }} onClick={() => setShowNotif(false)}/>}
+      {showNotif && <NotificationDropdown onClose={() => setShowNotif(false)}/>}
+      {/* Hamburger — hidden on desktop via CSS, visible on mobile */}
+      <button className="btn btn-icon btn-ghost topbar-hamburger" style={{ display:'none', flexShrink:0 }} title="Menü" onClick={() => setMobileMenuOpen(true)}>
+        <Icon name="menu" size={18}/>
+      </button>
+      <div className="row" style={{ gap:8, flex:1, minWidth:0 }}>
+        <div style={{ minWidth:0 }}>
+          <div className="h-3" style={{ fontSize:16, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{title}</div>
+          {sub && <div className="t-muted" style={{ fontSize:12 }}>{sub}</div>}
         </div>
       </div>
-      <div className="row" style={{ gap: 8 }}>
+      <div className="row" style={{ gap:6, flexShrink:0 }}>
         {search !== false && (
-          <div style={{ position: 'relative' }}>
-            <Icon name="search" size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--ink-4)' }}/>
-            <input className="input" placeholder="Suchen…" style={{ paddingLeft: 32, height: 36, width: 220 }}/>
+          <div className="topbar-search" style={{ position:'relative' }}>
+            <Icon name="search" size={15} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--ink-4)'}}/>
+            <input className="input" placeholder="Suchen…" style={{ paddingLeft:32, height:36, width:220 }}/>
           </div>
         )}
-        <button className="btn btn-icon btn-ghost" title="Benachrichtigungen"><Icon name="bell" size={16}/></button>
-        <button className="btn btn-icon btn-ghost" title="Einstellungen"><Icon name="settings" size={16}/></button>
-        <div className="row" style={{ paddingLeft: 6, gap: 8 }}>
-          <Avatar name={user?.name || '?'} size={32} k={user?.avatarKey || 1}/>
-          <div style={{ lineHeight: 1.15 }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{user?.name}</div>
-            <div className="t-tiny">{user?.role === 'school' ? 'Schule' : user?.role === 'teacher' ? 'Lehrperson' : user?.role === 'leadership' ? 'Schulleitung' : 'Admin'}</div>
+        <div style={{ position:'relative' }}>
+          <button className="btn btn-icon btn-ghost" title="Benachrichtigungen" onClick={() => setShowNotif(v => !v)}>
+            <Icon name="bell" size={16}/>
+          </button>
+          {unread > 0 && (
+            <span style={{ position:'absolute', top:4, right:4, background:'var(--danger)', color:'white', borderRadius:999, minWidth:15, height:15, fontSize:9, fontWeight:700, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 2px', lineHeight:1, pointerEvents:'none' }}>
+              {unread}
+            </span>
+          )}
+        </div>
+        <button className="btn btn-icon btn-ghost" title="Einstellungen" onClick={() => navigate('/settings')}>
+          <Icon name="settings" size={16}/>
+        </button>
+        <div className="row" style={{ paddingLeft:4, gap:6 }}>
+          <Avatar name={user?.name||'?'} size={32} k={user?.avatarKey||1}/>
+          <div className="topbar-username" style={{ lineHeight:1.15 }}>
+            <div style={{ fontSize:13, fontWeight:600 }}>{user?.name}</div>
+            <div className="t-tiny">{user?.role==='school'?'Schule':user?.role==='teacher'?'Lehrperson':user?.role==='leadership'?'Schulleitung':'Admin'}</div>
           </div>
           <button className="btn btn-icon btn-ghost" onClick={() => { setUser(null); navigate('/'); }} title="Abmelden">
             <Icon name="log-out" size={16}/>
@@ -289,38 +371,88 @@ function AppTopbar({ title, sub, search }) {
 
 /* =============== APP SIDEBAR =============== */
 function Sidebar({ items, active }) {
-  const { navigate, user } = useStore();
+  const { navigate, user, mobileMenuOpen, setMobileMenuOpen } = useStore();
+  const bottomItems = items.slice(0, 4);
+  const hasMore = items.length > 4;
+
   return (
-    <aside className="sidebar">
-      <div onClick={() => navigate('/')} style={{ padding: '4px 10px 16px', cursor: 'pointer' }}>
-        <Logo size={26}/>
-      </div>
-      <div className="sidebar-section">Übersicht</div>
-      {items.map(it => (
-        <div key={it.route} className={`sidebar-link ${active === it.route ? 'active' : ''}`} onClick={() => navigate(it.route)}>
-          <Icon name={it.icon} size={17}/>
-          <span>{it.label}</span>
-          {it.badge && <span className="sidebar-badge">{it.badge}</span>}
+    <>
+      {/* Desktop/tablet sidebar */}
+      <aside className="sidebar">
+        <div onClick={() => navigate('/')} style={{ padding: '4px 10px 16px', cursor: 'pointer' }}>
+          <Logo size={26}/>
         </div>
-      ))}
-      <div style={{ marginTop: 'auto' }}>
-        <div className="divider" style={{ margin: '12px 0' }}/>
-        <div className="sidebar-link" onClick={() => navigate('/settings')}>
-          <Icon name="settings" size={17}/><span>Einstellungen</span>
+        <div className="sidebar-section">Übersicht</div>
+        {items.map(it => (
+          <div key={it.route} className={`sidebar-link ${active === it.route ? 'active' : ''}`} onClick={() => navigate(it.route)}>
+            <Icon name={it.icon} size={17}/>
+            <span>{it.label}</span>
+            {it.badge ? <span className="sidebar-badge">{it.badge}</span> : null}
+          </div>
+        ))}
+        <div style={{ marginTop: 'auto' }}>
+          <div className="divider" style={{ margin: '12px 0' }}/>
+          <div className="sidebar-link" onClick={() => navigate('/settings')}>
+            <Icon name="settings" size={17}/><span>Einstellungen</span>
+          </div>
+          <div className="sidebar-link" onClick={() => navigate('/help')}>
+            <Icon name="help" size={17}/><span>Hilfe</span>
+          </div>
         </div>
-        <div className="sidebar-link" onClick={() => navigate('/help')}>
-          <Icon name="help" size={17}/><span>Hilfe</span>
-        </div>
-      </div>
-    </aside>
+      </aside>
+
+      {/* Mobile bottom navigation */}
+      <nav className="bottom-nav">
+        {bottomItems.map(it => (
+          <div key={it.route} className={`bottom-nav-item ${active === it.route ? 'active' : ''}`} onClick={() => navigate(it.route)}>
+            <Icon name={it.icon} size={22}/>
+            <span>{it.label.split(' ')[0]}</span>
+            {it.badge ? <span className="bottom-nav-badge">{it.badge}</span> : null}
+          </div>
+        ))}
+        {hasMore && (
+          <div className="bottom-nav-item" onClick={() => setMobileMenuOpen(true)}>
+            <Icon name="menu" size={22}/>
+            <span>Mehr</span>
+          </div>
+        )}
+      </nav>
+
+      {/* Mobile drawer overlay */}
+      {mobileMenuOpen && (
+        <>
+          <div className="mobile-drawer-bg" onClick={() => setMobileMenuOpen(false)}/>
+          <div className="mobile-drawer">
+            <div className="mobile-drawer-handle" onClick={() => setMobileMenuOpen(false)}/>
+            <div style={{ display:'flex', flexDirection:'column', gap:4, marginBottom:16 }}>
+              {items.map(it => (
+                <div key={it.route} className={`sidebar-link ${active === it.route ? 'active' : ''}`} style={{ padding:'12px 14px', borderRadius:10, fontSize:15 }}
+                  onClick={() => { navigate(it.route); setMobileMenuOpen(false); }}>
+                  <Icon name={it.icon} size={20}/>
+                  <span style={{ display:'block' }}>{it.label}</span>
+                  {it.badge ? <span className="sidebar-badge">{it.badge}</span> : null}
+                </div>
+              ))}
+            </div>
+            <div className="divider" style={{ margin:'8px 0 12px' }}/>
+            <div className="sidebar-link" style={{ padding:'12px 14px', borderRadius:10, fontSize:15 }} onClick={() => { navigate('/settings'); setMobileMenuOpen(false); }}>
+              <Icon name="settings" size={20}/><span style={{ display:'block' }}>Einstellungen</span>
+            </div>
+            <div className="sidebar-link" style={{ padding:'12px 14px', borderRadius:10, fontSize:15 }} onClick={() => setMobileMenuOpen(false)}>
+              <Icon name="help" size={20}/><span style={{ display:'block' }}>Hilfe</span>
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
 /* expose globals */
 Object.assign(window, {
   Icon, Logo, useStore, StoreProvider, StoreCtx,
-  SCHOOLS, TEACHERS, REQUESTS, SUBJECTS, GRADES,
+  SCHOOLS, TEACHERS, REQUESTS, NOTIFICATIONS, SUBJECTS, GRADES,
   formatDate, formatRelativeDate,
   Avatar, Button, Pill, StatusPill, UrgencyPill, Modal, EmptyState,
-  AppTopbar, Sidebar,
+  AppTopbar, Sidebar, NotificationDropdown, useIsMobile,
 });

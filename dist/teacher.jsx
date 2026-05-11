@@ -17,6 +17,7 @@ function TeacherShell({ children, active }) {
 
 function TeacherHome() {
   const { teachers, requests, navigate, user, schools, setRequests, showToast } = useStore();
+  const isMobile = useIsMobile();
   const me = teachers.find(t => t.id === (user.teacherId || 't1'));
   const inbox = requests.filter(r => r.suggestedIds?.includes(me.id) && r.status !== 'completed' && r.status !== 'confirmed');
   const accepted = requests.filter(r => r.confirmedId === me.id && r.status !== 'completed');
@@ -50,7 +51,7 @@ function TeacherHome() {
           <KPI num={`${me.rating} ★`} label={`${me.jobs} Bewertungen`} icon="star" tone="warn"/>
         </div>
 
-        <div className="grid-2" style={{ gridTemplateColumns: '1.5fr 1fr', alignItems: 'flex-start', gap: 24 }}>
+        <div className="grid-2" style={{ gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', alignItems: 'flex-start', gap: 24 }}>
           <div className="card">
             <div className="spread" style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
               <div className="h-3">Eingehende Anfragen</div>
@@ -147,6 +148,7 @@ function NextJob({ r }) {
 /* =============== TEACHER JOB DETAIL (handover view) =============== */
 function TeacherJobDetail({ id }) {
   const { requests, schools, navigate, teachers, user } = useStore();
+  const isMobile = useIsMobile();
   const r = requests.find(x => x.id === id);
   if (!r) return <TeacherShell active="/teacher/jobs"><AppTopbar title="Nicht gefunden"/><div className="page">Einsatz nicht gefunden.</div></TeacherShell>;
   const sch = schools.find(s => s.id === r.schoolId);
@@ -158,7 +160,7 @@ function TeacherJobDetail({ id }) {
           <Button variant="ghost" size="sm" icon="arrow-left" onClick={() => navigate('/teacher/jobs')}>Zurück</Button>
         </div>
 
-        <div className="grid-2" style={{ gridTemplateColumns: '1.5fr 1fr', gap: 24, alignItems: 'flex-start' }}>
+        <div className="grid-2" style={{ gridTemplateColumns: isMobile ? '1fr' : '1.5fr 1fr', gap: 24, alignItems: 'flex-start' }}>
           <div className="col" style={{ gap: 16 }}>
             <div className="card" style={{ padding: 24, background: 'linear-gradient(135deg, var(--primary), oklch(38% 0.18 240))', color: 'white', border: 'none' }}>
               <div className="row" style={{ gap: 8 }}>
@@ -371,6 +373,7 @@ function TeacherProfile() {
 
 function TeacherCalendar() {
   const { showToast } = useStore();
+  const isMobile = useIsMobile();
   const [days, setDays] = useState(() => {
     const o = {};
     for (let d = 1; d <= 31; d++) o[d] = d % 5 === 0 || d % 7 === 0 ? 'busy' : (d % 3 === 0 ? 'free' : 'open');
@@ -382,7 +385,7 @@ function TeacherCalendar() {
     <TeacherShell active="/teacher/calendar">
       <AppTopbar title="Verfügbarkeit" sub="Klick auf einen Tag, um den Status zu ändern"/>
       <div className="page fade-in" style={{ maxWidth: 980 }}>
-        <div className="grid-2" style={{ gridTemplateColumns: '2fr 1fr', gap: 24, alignItems: 'flex-start' }}>
+        <div className="grid-2" style={{ gridTemplateColumns: isMobile ? '1fr' : '2fr 1fr', gap: 24, alignItems: 'flex-start' }}>
           <div className="card" style={{ padding: 28 }}>
             <div className="spread" style={{ marginBottom: 18 }}>
               <div>

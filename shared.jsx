@@ -1,6 +1,16 @@
 /* global React */
 const { useState, useEffect, useMemo, useRef, createContext, useContext } = React;
 
+function useIsMobile() {
+  const [mobile, setMobile] = useState(() => window.innerWidth <= 640);
+  useEffect(() => {
+    const fn = () => setMobile(window.innerWidth <= 640);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, []);
+  return mobile;
+}
+
 /* =============== ICONS (inline SVG, original) =============== */
 const Icon = ({ name, size = 18, stroke = 1.75, ...rest }) => {
   const props = {
@@ -168,6 +178,7 @@ function StoreProvider({ children }) {
   const [inserateUsed, setInserateUsed] = useState(7);
   const inserateLimit = 10;
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => { localStorage.setItem('tc.route', route); }, [route]);
   useEffect(() => { localStorage.setItem('tc.user', JSON.stringify(user)); }, [user]);
@@ -186,6 +197,7 @@ function StoreProvider({ children }) {
     showToast, toast, modal, setModal,
     inserateUsed, setInserateUsed, inserateLimit,
     notifications, setNotifications,
+    mobileMenuOpen, setMobileMenuOpen,
   };
   return (
     <StoreCtx.Provider value={value}>
@@ -305,22 +317,26 @@ function NotificationDropdown({ onClose }) {
 
 /* =============== APP TOPBAR (signed in) =============== */
 function AppTopbar({ title, sub, search }) {
-  const { user, navigate, setUser, notifications } = useStore();
+  const { user, navigate, setUser, notifications, setMobileMenuOpen } = useStore();
   const [showNotif, setShowNotif] = useState(false);
   const unread = (notifications||[]).filter(n => !n.read).length;
   return (
     <div className="topbar">
       {showNotif && <div style={{ position:'fixed', inset:0, zIndex:200 }} onClick={() => setShowNotif(false)}/>}
       {showNotif && <NotificationDropdown onClose={() => setShowNotif(false)}/>}
-      <div className="row" style={{ gap:16, flex:1 }}>
-        <div>
-          <div className="h-3" style={{ fontSize:16 }}>{title}</div>
+      {/* Hamburger — hidden on desktop via CSS, visible on mobile */}
+      <button className="btn btn-icon btn-ghost topbar-hamburger" style={{ display:'none', flexShrink:0 }} title="Menü" onClick={() => setMobileMenuOpen(true)}>
+        <Icon name="menu" size={18}/>
+      </button>
+      <div className="row" style={{ gap:8, flex:1, minWidth:0 }}>
+        <div style={{ minWidth:0 }}>
+          <div className="h-3" style={{ fontSize:16, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{title}</div>
           {sub && <div className="t-muted" style={{ fontSize:12 }}>{sub}</div>}
         </div>
       </div>
-      <div className="row" style={{ gap:8 }}>
+      <div className="row" style={{ gap:6, flexShrink:0 }}>
         {search !== false && (
-          <div style={{ position:'relative' }}>
+          <div className="topbar-search" style={{ position:'relative' }}>
             <Icon name="search" size={15} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--ink-4)'}}/>
             <input className="input" placeholder="Suchen…" style={{ paddingLeft:32, height:36, width:220 }}/>
           </div>
@@ -338,9 +354,9 @@ function AppTopbar({ title, sub, search }) {
         <button className="btn btn-icon btn-ghost" title="Einstellungen" onClick={() => navigate('/settings')}>
           <Icon name="settings" size={16}/>
         </button>
-        <div className="row" style={{ paddingLeft:6, gap:8 }}>
+        <div className="row" style={{ paddingLeft:4, gap:6 }}>
           <Avatar name={user?.name||'?'} size={32} k={user?.avatarKey||1}/>
-          <div style={{ lineHeight:1.15 }}>
+          <div className="topbar-username" style={{ lineHeight:1.15 }}>
             <div style={{ fontSize:13, fontWeight:600 }}>{user?.name}</div>
             <div className="t-tiny">{user?.role==='school'?'Schule':user?.role==='teacher'?'Lehrperson':user?.role==='leadership'?'Schulleitung':'Admin'}</div>
           </div>
@@ -355,30 +371,80 @@ function AppTopbar({ title, sub, search }) {
 
 /* =============== APP SIDEBAR =============== */
 function Sidebar({ items, active }) {
-  const { navigate, user } = useStore();
+  const { navigate, user, mobileMenuOpen, setMobileMenuOpen } = useStore();
+  const bottomItems = items.slice(0, 4);
+  const hasMore = items.length > 4;
+
   return (
-    <aside className="sidebar">
-      <div onClick={() => navigate('/')} style={{ padding: '4px 10px 16px', cursor: 'pointer' }}>
-        <Logo size={26}/>
-      </div>
-      <div className="sidebar-section">Übersicht</div>
-      {items.map(it => (
-        <div key={it.route} className={`sidebar-link ${active === it.route ? 'active' : ''}`} onClick={() => navigate(it.route)}>
-          <Icon name={it.icon} size={17}/>
-          <span>{it.label}</span>
-          {it.badge && <span className="sidebar-badge">{it.badge}</span>}
+    <>
+      {/* Desktop/tablet sidebar */}
+      <aside className="sidebar">
+        <div onClick={() => navigate('/')} style={{ padding: '4px 10px 16px', cursor: 'pointer' }}>
+          <Logo size={26}/>
         </div>
-      ))}
-      <div style={{ marginTop: 'auto' }}>
-        <div className="divider" style={{ margin: '12px 0' }}/>
-        <div className="sidebar-link" onClick={() => navigate('/settings')}>
-          <Icon name="settings" size={17}/><span>Einstellungen</span>
+        <div className="sidebar-section">Übersicht</div>
+        {items.map(it => (
+          <div key={it.route} className={`sidebar-link ${active === it.route ? 'active' : ''}`} onClick={() => navigate(it.route)}>
+            <Icon name={it.icon} size={17}/>
+            <span>{it.label}</span>
+            {it.badge ? <span className="sidebar-badge">{it.badge}</span> : null}
+          </div>
+        ))}
+        <div style={{ marginTop: 'auto' }}>
+          <div className="divider" style={{ margin: '12px 0' }}/>
+          <div className="sidebar-link" onClick={() => navigate('/settings')}>
+            <Icon name="settings" size={17}/><span>Einstellungen</span>
+          </div>
+          <div className="sidebar-link" onClick={() => navigate('/help')}>
+            <Icon name="help" size={17}/><span>Hilfe</span>
+          </div>
         </div>
-        <div className="sidebar-link" onClick={() => navigate('/help')}>
-          <Icon name="help" size={17}/><span>Hilfe</span>
-        </div>
-      </div>
-    </aside>
+      </aside>
+
+      {/* Mobile bottom navigation */}
+      <nav className="bottom-nav">
+        {bottomItems.map(it => (
+          <div key={it.route} className={`bottom-nav-item ${active === it.route ? 'active' : ''}`} onClick={() => navigate(it.route)}>
+            <Icon name={it.icon} size={22}/>
+            <span>{it.label.split(' ')[0]}</span>
+            {it.badge ? <span className="bottom-nav-badge">{it.badge}</span> : null}
+          </div>
+        ))}
+        {hasMore && (
+          <div className="bottom-nav-item" onClick={() => setMobileMenuOpen(true)}>
+            <Icon name="menu" size={22}/>
+            <span>Mehr</span>
+          </div>
+        )}
+      </nav>
+
+      {/* Mobile drawer overlay */}
+      {mobileMenuOpen && (
+        <>
+          <div className="mobile-drawer-bg" onClick={() => setMobileMenuOpen(false)}/>
+          <div className="mobile-drawer">
+            <div className="mobile-drawer-handle" onClick={() => setMobileMenuOpen(false)}/>
+            <div style={{ display:'flex', flexDirection:'column', gap:4, marginBottom:16 }}>
+              {items.map(it => (
+                <div key={it.route} className={`sidebar-link ${active === it.route ? 'active' : ''}`} style={{ padding:'12px 14px', borderRadius:10, fontSize:15 }}
+                  onClick={() => { navigate(it.route); setMobileMenuOpen(false); }}>
+                  <Icon name={it.icon} size={20}/>
+                  <span style={{ display:'block' }}>{it.label}</span>
+                  {it.badge ? <span className="sidebar-badge">{it.badge}</span> : null}
+                </div>
+              ))}
+            </div>
+            <div className="divider" style={{ margin:'8px 0 12px' }}/>
+            <div className="sidebar-link" style={{ padding:'12px 14px', borderRadius:10, fontSize:15 }} onClick={() => { navigate('/settings'); setMobileMenuOpen(false); }}>
+              <Icon name="settings" size={20}/><span style={{ display:'block' }}>Einstellungen</span>
+            </div>
+            <div className="sidebar-link" style={{ padding:'12px 14px', borderRadius:10, fontSize:15 }} onClick={() => setMobileMenuOpen(false)}>
+              <Icon name="help" size={20}/><span style={{ display:'block' }}>Hilfe</span>
+            </div>
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
@@ -388,5 +454,5 @@ Object.assign(window, {
   SCHOOLS, TEACHERS, REQUESTS, NOTIFICATIONS, SUBJECTS, GRADES,
   formatDate, formatRelativeDate,
   Avatar, Button, Pill, StatusPill, UrgencyPill, Modal, EmptyState,
-  AppTopbar, Sidebar, NotificationDropdown,
+  AppTopbar, Sidebar, NotificationDropdown, useIsMobile,
 });

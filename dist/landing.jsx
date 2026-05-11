@@ -4,28 +4,64 @@ const { useState: _useStateL } = React;
 /* =============== PUBLIC NAV =============== */
 function PublicNav() {
   const { navigate, user } = useStore();
+  const [menuOpen, setMenuOpen] = _useStateL(false);
+  const links = [
+    { l: 'Über uns', r: '/about' },
+    { l: 'Für Schulen', r: '/for-schools' },
+    { l: 'Für Lehrpersonen', r: '/for-teachers' },
+    { l: 'Preise', r: '/pricing' },
+  ];
+  const go = (r) => { navigate(r); setMenuOpen(false); };
   return (
-    <nav className="nav-public">
-      <div onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-        <Logo size={32}/>
-      </div>
-      <div className="nav-links">
-        <a onClick={() => navigate('/about')}>Über uns</a>
-        <a onClick={() => navigate('/for-schools')}>Für Schulen</a>
-        <a onClick={() => navigate('/for-teachers')}>Für Lehrpersonen</a>
-        <a onClick={() => navigate('/pricing')}>Preise</a>
-      </div>
-      <div className="row" style={{ gap: 8 }}>
-        {user ? (
-          <Button variant="primary" size="sm" iconRight="arrow-right" onClick={() => navigate(user.role === 'admin' ? '/admin' : user.role === 'leadership' ? '/leadership' : user.role === 'school' ? '/school' : '/teacher')}>Zum Dashboard</Button>
-        ) : (
-          <>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>Anmelden</Button>
-            <Button variant="primary" size="sm" iconRight="arrow-right" onClick={() => navigate('/register')}>Jetzt starten</Button>
-          </>
-        )}
-      </div>
-    </nav>
+    <>
+      <nav className="nav-public">
+        <div onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+          <Logo size={32}/>
+        </div>
+        <div className="nav-links">
+          {links.map(x => <a key={x.r} onClick={() => navigate(x.r)}>{x.l}</a>)}
+        </div>
+        <div className="row nav-cta" style={{ gap: 8 }}>
+          {user ? (
+            <Button variant="primary" size="sm" iconRight="arrow-right" onClick={() => navigate(user.role === 'admin' ? '/admin' : user.role === 'leadership' ? '/leadership' : user.role === 'school' ? '/school' : '/teacher')}>Zum Dashboard</Button>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>Anmelden</Button>
+              <Button variant="primary" size="sm" iconRight="arrow-right" onClick={() => navigate('/register')}>Jetzt starten</Button>
+            </>
+          )}
+        </div>
+        {/* Hamburger — only visible on mobile */}
+        <button className="btn btn-icon btn-ghost nav-hamburger" style={{ display:'none' }} onClick={() => setMenuOpen(true)}>
+          <Icon name="menu" size={20}/>
+        </button>
+      </nav>
+
+      {/* Mobile full-screen nav overlay */}
+      {menuOpen && (
+        <div className="nav-overlay">
+          <div className="nav-overlay-head">
+            <Logo size={28}/>
+            <button className="btn btn-icon btn-ghost" onClick={() => setMenuOpen(false)}>
+              <Icon name="x" size={20}/>
+            </button>
+          </div>
+          <div className="nav-overlay-links">
+            {links.map(x => <a key={x.r} onClick={() => go(x.r)}>{x.l}</a>)}
+          </div>
+          <div className="nav-overlay-btns">
+            {user ? (
+              <Button variant="primary" iconRight="arrow-right" onClick={() => go(user.role === 'admin' ? '/admin' : user.role === 'leadership' ? '/leadership' : user.role === 'school' ? '/school' : '/teacher')}>Zum Dashboard</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => go('/login')}>Anmelden</Button>
+                <Button variant="primary" iconRight="arrow-right" onClick={() => go('/register')}>Jetzt starten</Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -34,8 +70,8 @@ function HeroMock() {
   return (
     <div className="hero-mock">
       <div className="mock-chrome"><span/><span/><span/></div>
-      <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', minHeight: 380 }}>
-        <div style={{ background: 'var(--surface-2)', borderRight: '1px solid var(--border)', padding: 16 }}>
+      <div className="hero-mock-grid" style={{ display: 'grid', gridTemplateColumns: '200px 1fr', minHeight: 380 }}>
+        <div className="hero-mock-sidebar" style={{ background: 'var(--surface-2)', borderRight: '1px solid var(--border)', padding: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
             <Logo size={20} withWord={false}/>
             <span style={{ fontWeight: 600, fontSize: 13 }}>TeachConnect</span>
@@ -97,7 +133,7 @@ function Landing() {
           <p style={{ fontSize: 19, color: 'var(--ink-3)', maxWidth: 640, margin: '24px auto 32px', lineHeight: 1.5 }}>
             Die digitale Plattform für Schweizer Schulen, die kurzfristige Ausfälle in Minuten besetzt – mit smartem Matching und sauberer Unterrichtsübergabe.
           </p>
-          <div className="row" style={{ justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div className="row hero-buttons" style={{ justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
             <Button variant="primary" size="lg" iconRight="arrow-right" onClick={() => navigate('/register')}>Schule jetzt starten</Button>
             <Button variant="outline" size="lg" onClick={() => navigate('/for-teachers')}>Als Lehrperson registrieren</Button>
           </div>
@@ -301,7 +337,7 @@ function PublicFooter() {
   const { navigate } = useStore();
   return (
     <footer className="footer">
-      <div style={{ maxWidth: 1180, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+      <div className="footer-grid" style={{ maxWidth: 1180, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div>
           <Logo size={26}/>
           <div className="t-tiny" style={{ marginTop: 8 }}>© 2026 TeachConnect AG · Hosting in der Schweiz · DSG-konform</div>
