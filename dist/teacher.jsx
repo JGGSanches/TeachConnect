@@ -1,8 +1,12 @@
 /* =============== TEACHER DASHBOARD =============== */
 function TeacherShell({ children, active }) {
+  const { requests, user, teachers } = useStore();
+  const me = teachers.find(t => t.id === (user?.teacherId || 't1'));
+  const inboxCount = requests.filter(r => r.suggestedIds?.includes(me?.id) && r.status !== 'completed' && r.status !== 'confirmed').length;
   const items = [
     { route: '/teacher', icon: 'home', label: 'Übersicht' },
-    { route: '/teacher/inbox', icon: 'inbox', label: 'Anfragen', badge: 3 },
+    { route: '/teacher/inbox', icon: 'inbox', label: 'Posteingang', badge: inboxCount || null },
+    { route: '/teacher/browse', icon: 'search', label: 'Stellen suchen' },
     { route: '/teacher/jobs', icon: 'briefcase', label: 'Meine Einsätze' },
     { route: '/teacher/calendar', icon: 'calendar', label: 'Verfügbarkeit' },
     { route: '/teacher/profile', icon: 'user', label: 'Profil' },
@@ -74,6 +78,7 @@ function TeacherHome() {
                     <span className="match-score">94% Match</span>
                     <div className="row" style={{ gap: 6 }}>
                       <Button variant="ghost" size="sm" onClick={() => decline(r.id)}>Ablehnen</Button>
+                      <Button variant="outline" size="sm" icon="eye" onClick={() => navigate('/teacher/job/' + r.id)}>Details</Button>
                       <Button variant="primary" size="sm" iconRight="check" onClick={() => accept(r.id)}>Annehmen</Button>
                     </div>
                   </div>
@@ -447,4 +452,136 @@ function TeacherCalendar() {
   );
 }
 
-Object.assign(window, { TeacherShell, TeacherHome, TeacherJobDetail, TeacherProfile, TeacherCalendar, NextJob, InfoBlock });
+/* =============== TEACHER BROWSE =============== */
+function TeacherBrowse() {
+  const { requests, schools, teachers, user, setRequests, showToast, navigate, subjects, grades } = useStore();
+  const me = teachers.find(t => t.id === (user?.teacherId || 't1'));
+
+  const EXTRA = [
+    { id: 'br1', schoolId: 's2', subject: 'Englisch', grade: 'Sek I', date: '2026-05-13', start: '10:15', end: '12:00', lessons: 2, status: 'open', urgency: 'medium', note: 'Konversation Unit 9.', applicants: 1, suggestedIds: [], confirmedId: null, handoverComplete: false, createdAt: '2026-05-10T08:00:00' },
+    { id: 'br2', schoolId: 's3', subject: 'Mathematik', grade: 'Sek I', date: '2026-05-14', start: '08:00', end: '11:30', lessons: 4, status: 'open', urgency: 'high', note: 'Bruchrechnen, Klasse 8a.', applicants: 2, suggestedIds: [], confirmedId: null, handoverComplete: false, createdAt: '2026-05-10T09:00:00' },
+    { id: 'br3', schoolId: 's1', subject: 'Geschichte', grade: 'Sek II', date: '2026-05-15', start: '08:00', end: '09:35', lessons: 2, status: 'open', urgency: 'low', note: 'Weltkrieg 2, Kapitel 8.', applicants: 0, suggestedIds: [], confirmedId: null, handoverComplete: false, createdAt: '2026-05-09T14:00:00' },
+    { id: 'br4', schoolId: 's2', subject: 'Deutsch', grade: '5./6. Primar', date: '2026-05-19', start: '10:00', end: '11:30', lessons: 2, status: 'open', urgency: 'low', note: 'Aufsatz-Einheit.', applicants: 0, suggestedIds: [], confirmedId: null, handoverComplete: false, createdAt: '2026-05-09T15:00:00' },
+    { id: 'br5', schoolId: 's3', subject: 'Biologie', grade: 'Sek I', date: '2026-05-20', start: '10:00', end: '12:45', lessons: 3, status: 'open', urgency: 'medium', note: 'Zellbiologie, Mikroskope vorbereitet.', applicants: 1, suggestedIds: [], confirmedId: null, handoverComplete: false, createdAt: '2026-05-10T07:30:00' },
+    { id: 'br6', schoolId: 's1', subject: 'Sport', grade: 'Sek II', date: '2026-05-21', start: '13:30', end: '15:15', lessons: 2, status: 'open', urgency: 'low', note: 'Volleyball Halle.', applicants: 0, suggestedIds: [], confirmedId: null, handoverComplete: false, createdAt: '2026-05-10T10:00:00' },
+  ];
+
+  const [subjectF, setSubjectF] = useState('');
+  const [gradeF, setGradeF] = useState('');
+  const [regionF, setRegionF] = useState('');
+  const [sort, setSort] = useState('match');
+  const [declined, setDeclined] = useState([]);
+
+  const allOpen = [...requests, ...EXTRA].filter(r =>
+    (r.status === 'open' || r.status === 'matched') &&
+    r.confirmedId === null &&
+    !declined.includes(r.id)
+  );
+
+  const scored = allOpen.map(r => {
+    let score = 50;
+    if (me?.subjects.includes(r.subject)) score += 30;
+    if (me?.grades.includes(r.grade)) score += 15;
+    const sch = schools.find(s => s.id === r.schoolId);
+    if (sch?.region === me?.region) score += 8;
+    if (r.urgency === 'high') score += 4;
+    return { ...r, score: Math.min(99, Math.round(score)) };
+  });
+
+  const filtered = scored.filter(r => {
+    const sch = schools.find(s => s.id === r.schoolId);
+    return (!subjectF || r.subject === subjectF) &&
+           (!gradeF || r.grade === gradeF) &&
+           (!regionF || sch?.region === regionF);
+  }).sort((a, b) => sort === 'match' ? b.score - a.score : sort === 'date' ? a.date.localeCompare(b.date) : 0);
+
+  const regions = [...new Set(schools.map(s => s.region))];
+
+  const accept = (r) => {
+    setRequests(requests.map(x => x.id === r.id ? { ...x, status: 'confirmed', confirmedId: me.id } : x));
+    showToast(`${r.subject} angenommen. Übergabe wird vorbereitet.`);
+  };
+  const decline = (id) => { setDeclined(d => [...d, id]); showToast('Anfrage übersprungen.'); };
+
+  return (
+    <TeacherShell active="/teacher/browse">
+      <AppTopbar title="Stellen suchen" sub={`${filtered.length} offene Stellvertretungen in deiner Region`}/>
+      <div className="page fade-in">
+        <div className="page-header">
+          <div>
+            <div className="page-title">Stellen suchen</div>
+            <div className="page-sub">Alle offenen Stellvertretungen – nach Match-Score sortiert</div>
+          </div>
+        </div>
+
+        <div className="card" style={{ padding:'12px 16px', marginBottom:20 }}>
+          <div className="row" style={{ gap:10, flexWrap:'wrap' }}>
+            <select className="select" style={{ height:36, fontSize:13 }} value={subjectF} onChange={e => setSubjectF(e.target.value)}>
+              <option value="">Alle Fächer</option>
+              {subjects.map(s => <option key={s}>{s}</option>)}
+            </select>
+            <select className="select" style={{ height:36, fontSize:13 }} value={gradeF} onChange={e => setGradeF(e.target.value)}>
+              <option value="">Alle Stufen</option>
+              {grades.map(g => <option key={g}>{g}</option>)}
+            </select>
+            <select className="select" style={{ height:36, fontSize:13 }} value={regionF} onChange={e => setRegionF(e.target.value)}>
+              <option value="">Alle Regionen</option>
+              {regions.map(r => <option key={r}>{r}</option>)}
+            </select>
+            <select className="select" style={{ height:36, fontSize:13 }} value={sort} onChange={e => setSort(e.target.value)}>
+              <option value="match">Sortierung: Match-Score</option>
+              <option value="date">Sortierung: Datum</option>
+            </select>
+            {(subjectF || gradeF || regionF) && <Button variant="ghost" size="sm" icon="x" onClick={() => { setSubjectF(''); setGradeF(''); setRegionF(''); }}>Zurücksetzen</Button>}
+          </div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="card" style={{ padding:40 }}>
+            <EmptyState icon="search" title="Keine Stellen gefunden." description="Passe die Filter an oder warte auf neue Anfragen."/>
+          </div>
+        ) : (
+          <div className="col" style={{ gap:12 }}>
+            {filtered.map(r => {
+              const sch = schools.find(s => s.id === r.schoolId);
+              const isInbox = r.suggestedIds?.includes(me?.id);
+              return (
+                <div key={r.id} className="card" style={{ padding:20 }}>
+                  <div className="row" style={{ gap:16, alignItems:'flex-start' }}>
+                    <Avatar name={sch.name} size={48} k={sch.logo}/>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div className="row" style={{ gap:8, marginBottom:4, flexWrap:'wrap' }}>
+                        <b style={{ fontSize:15 }}>{r.subject}</b>
+                        <span className="t-muted">· {r.grade}</span>
+                        <UrgencyPill u={r.urgency}/>
+                        {isInbox && <Pill variant="primary"><Icon name="zap" size={11}/>In deiner Inbox</Pill>}
+                      </div>
+                      <div className="t-tiny" style={{ marginBottom:6 }}>
+                        <Icon name="building" size={11} style={{ verticalAlign:'middle', marginRight:4 }}/>{sch.name} · <Icon name="map-pin" size={11} style={{ verticalAlign:'middle', margin:'0 4px 0 6px' }}/>{sch.region} · <Icon name="calendar" size={11} style={{ verticalAlign:'middle', margin:'0 4px 0 6px' }}/>{formatDate(r.date)} · <Icon name="clock" size={11} style={{ verticalAlign:'middle', margin:'0 4px 0 6px' }}/>{r.start}–{r.end} · {r.lessons} Lektionen
+                      </div>
+                      {r.note && <div className="t-muted" style={{ fontSize:12, fontStyle:'italic' }}>„{r.note.slice(0, 80)}{r.note.length > 80 ? '…' : ''}"</div>}
+                      <div className="row" style={{ gap:16, marginTop:10 }}>
+                        <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                          <div className="match-bar" style={{ width:80 }}><div className="match-bar-fill" style={{ width:`${r.score}%`, background: r.score < 70 ? 'var(--danger)' : r.score < 85 ? 'oklch(72% 0.13 75)' : 'var(--success)' }}/></div>
+                          <span className={`match-score ${r.score < 70 ? 'low' : r.score < 85 ? 'med' : ''}`} style={{ fontSize:12 }}>{r.score}% Match</span>
+                        </div>
+                        {r.applicants > 0 && <span className="t-tiny">{r.applicants} Mitbewerber:in</span>}
+                      </div>
+                    </div>
+                    <div className="row" style={{ gap:6, flexShrink:0 }}>
+                      <Button variant="ghost" size="sm" onClick={() => decline(r.id)}>Überspringen</Button>
+                      <Button variant="outline" size="sm" icon="eye" onClick={() => navigate('/teacher/job/' + r.id)}>Details</Button>
+                      <Button variant="primary" size="sm" iconRight="check" onClick={() => accept(r)}>Annehmen</Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </TeacherShell>
+  );
+}
+
+Object.assign(window, { TeacherShell, TeacherHome, TeacherJobDetail, TeacherProfile, TeacherCalendar, TeacherBrowse, NextJob, InfoBlock });

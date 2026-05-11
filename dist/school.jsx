@@ -8,6 +8,7 @@ function SchoolShell({ children, active }) {
     { route: '/school/bookings', icon: 'calendar', label: 'Buchungen' },
     { route: '/school/handover', icon: 'book', label: 'Übergaben' },
     { route: '/school/teachers', icon: 'users', label: 'Lehrpersonen-Pool' },
+    { route: '/school/finances', icon: 'bar-chart', label: 'Finanzen' },
     { route: '/school/profile', icon: 'building', label: 'Schulprofil' },
   ];
   return (
@@ -19,12 +20,14 @@ function SchoolShell({ children, active }) {
 }
 
 function SchoolHome() {
-  const { requests, navigate, schools, teachers, user, setModal } = useStore();
+  const { requests, navigate, schools, teachers, user, setModal, inserateUsed, inserateLimit, setInserateUsed, showToast } = useStore();
   const school = schools.find(s => s.id === user.schoolId);
   const myReqs = requests.filter(r => r.schoolId === school.id);
   const open = myReqs.filter(r => r.status === 'open' || r.status === 'matched');
   const confirmed = myReqs.filter(r => r.status === 'confirmed');
   const completed = myReqs.filter(r => r.status === 'completed');
+  const insUsed = inserateUsed || 7;
+  const insLimit = inserateLimit || 10;
 
   return (
     <SchoolShell active="/school">
@@ -33,16 +36,35 @@ function SchoolHome() {
         <div className="page-header">
           <div>
             <div className="page-title">Guten Morgen, {user.name.split(' ')[0]}.</div>
-            <div className="page-sub">Donnerstag, 8. Mai 2026 · {open.length} offene Anfragen</div>
+            <div className="page-sub">Sonntag, 11. Mai 2026 · {open.length} offene Anfragen</div>
           </div>
           <Button variant="primary" icon="plus" onClick={() => navigate('/school/new-request')}>Neue Stellvertretung</Button>
         </div>
 
-        <div className="grid-4" style={{ marginBottom: 24 }}>
+        <div className="grid-4" style={{ marginBottom: 16 }}>
           <KPI num={open.length} label="Offen" trend="+2 heute" icon="briefcase" tone="primary"/>
           <KPI num={confirmed.length} label="Bestätigt" trend="" icon="check-circle" tone="success"/>
           <KPI num={completed.length} label="Diese Woche" trend="100% besetzt" icon="history" tone="accent"/>
           <KPI num="4 min" label="Ø Bearbeitung" trend="↓ 91 min vs. vorher" icon="zap" tone="warn"/>
+        </div>
+
+        {/* Inserate-Kontingent Banner */}
+        <div className="card" style={{ padding:'14px 20px', marginBottom:24, display:'flex', alignItems:'center', gap:16 }}>
+          <Icon name="briefcase" size={18} style={{ color: insUsed >= insLimit ? 'var(--danger)' : 'var(--primary)', flexShrink:0 }}/>
+          <div style={{ flex:1 }}>
+            <div style={{ fontSize:13, fontWeight:600, marginBottom:5 }}>
+              {insUsed} von {insLimit} Inseraten verwendet (Mai 2026) · <span style={{ color:'var(--ink-3)' }}>{insLimit - insUsed} verbleibend</span>
+            </div>
+            <div className="match-bar">
+              <div className="match-bar-fill" style={{ width:`${Math.round(insUsed/insLimit*100)}%`, background: insUsed >= insLimit ? 'var(--danger)' : insUsed >= insLimit - 2 ? 'oklch(72% 0.13 75)' : 'var(--primary)' }}/>
+            </div>
+          </div>
+          {insUsed >= insLimit - 2 && (
+            <Button variant="primary" size="sm" icon="plus" onClick={() => { setInserateUsed(n => Math.max(0, n - 5)); showToast('+5 Inserate hinzugefügt. CHF 30.00 wird verrechnet.'); }}>
+              Paket kaufen (CHF 30)
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={() => navigate('/school/finances')}>Finanzen</Button>
         </div>
 
         <div className="grid-2" style={{ alignItems: 'flex-start', gridTemplateColumns: '1.4fr 1fr' }}>
@@ -215,7 +237,7 @@ function RequestRow({ r, onClick, school }) {
 
 /* =============== NEW REQUEST FLOW =============== */
 function NewRequest() {
-  const { navigate, requests, setRequests, user, showToast, subjects, grades } = useStore();
+  const { navigate, requests, setRequests, user, showToast, subjects, grades, inserateUsed, inserateLimit, setInserateUsed } = useStore();
   const [s, setS] = useState({
     subject: 'Mathematik', grade: 'Sek I', date: '2026-05-12',
     start: '08:00', end: '11:30', lessons: 4,
@@ -235,6 +257,10 @@ function NewRequest() {
   }, [s.subject, s.grade]);
 
   const submit = () => {
+    if (inserateUsed >= inserateLimit) {
+      showToast('Inserate-Kontingent aufgebraucht. Kaufe ein zusätzliches Paket.', 'error');
+      return;
+    }
     const newR = {
       id: 'r' + Date.now(), schoolId: user.schoolId,
       ...s, status: 'matched', applicants: 0,
@@ -243,6 +269,7 @@ function NewRequest() {
       createdAt: new Date().toISOString(),
     };
     setRequests([newR, ...requests]);
+    setInserateUsed(n => n + 1);
     showToast('Anfrage veröffentlicht. 5 Lehrpersonen benachrichtigt.');
     navigate('/school/request/' + newR.id);
   };
@@ -319,11 +346,23 @@ function NewRequest() {
               <Button variant="outline" size="sm" icon="upload">Hochladen</Button>
             </div>
 
-            <div className="row" style={{ marginTop: 28, justifyContent: 'space-between' }}>
+            {inserateUsed >= inserateLimit - 2 && (
+              <div style={{ background: inserateUsed >= inserateLimit ? 'oklch(99% 0.015 20)' : 'var(--surface-2)', border: `1px solid ${inserateUsed >= inserateLimit ? 'var(--danger)' : 'oklch(72% 0.13 75)'}`, borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
+                <Icon name="alert-triangle" size={16} style={{ color: inserateUsed >= inserateLimit ? 'var(--danger)' : 'oklch(55% 0.13 75)', flexShrink: 0 }}/>
+                <div style={{ flex: 1 }}>
+                  {inserateUsed >= inserateLimit
+                    ? <><div style={{ fontSize: 13, fontWeight: 600, color: 'var(--danger)' }}>Kontingent aufgebraucht</div><div className="t-tiny">Alle {inserateLimit} Inserate für Mai 2026 sind aufgebraucht. Kaufe ein Zusatz-Paket, um neue Anfragen zu stellen.</div></>
+                    : <><div style={{ fontSize: 13, fontWeight: 600 }}>Nur noch {inserateLimit - inserateUsed} Inserate verfügbar</div><div className="t-tiny">{inserateUsed} von {inserateLimit} Inseraten für Mai 2026 verwendet.</div></>
+                  }
+                </div>
+                {inserateUsed >= inserateLimit && <Button variant="primary" size="sm" icon="plus" onClick={() => { setInserateUsed(n => Math.max(0, n - 5)); showToast('+5 Inserate hinzugefügt. CHF 30.00 wird verrechnet.'); }}>Paket kaufen (CHF 30)</Button>}
+              </div>
+            )}
+            <div className="row" style={{ marginTop: 16, justifyContent: 'space-between' }}>
               <Button variant="ghost" onClick={() => setMatchVisible(!matchVisible)}>{matchVisible ? 'Vorschau ausblenden' : 'Match-Vorschau'}</Button>
               <div className="row">
                 <Button variant="outline" onClick={() => showToast('Als Entwurf gespeichert.')}>Als Entwurf speichern</Button>
-                <Button variant="primary" iconRight="arrow-right" onClick={submit}>Veröffentlichen & matchen</Button>
+                <Button variant="primary" iconRight="arrow-right" onClick={submit} disabled={inserateUsed >= inserateLimit}>Veröffentlichen & matchen</Button>
               </div>
             </div>
           </div>
@@ -858,4 +897,158 @@ function SchoolHandover() {
   );
 }
 
-Object.assign(window, { SchoolHome, SchoolShell, NewRequest, RequestDetail, SchoolRequests, SchoolBookings, SchoolHandover, KPI, Stars, MiniCalendar, RequestRow, MatchRow, TLItem });
+/* =============== SCHOOL: FINANCES =============== */
+function SchoolFinances() {
+  const { inserateUsed, inserateLimit, setInserateUsed, showToast, user } = useStore();
+  const insLeft = inserateLimit - inserateUsed;
+
+  const MONTHS = [
+    { m: 'Dez 25', abo: 75, inserate: 0,  vermittlung: 184 },
+    { m: 'Jan 26', abo: 75, inserate: 0,  vermittlung: 552 },
+    { m: 'Feb 26', abo: 75, inserate: 30, vermittlung: 368 },
+    { m: 'Mär 26', abo: 75, inserate: 0,  vermittlung: 736 },
+    { m: 'Apr 26', abo: 75, inserate: 30, vermittlung: 920 },
+    { m: 'Mai 26', abo: 75, inserate: 0,  vermittlung: 460 },
+  ];
+
+  const TRANSACTIONS = [
+    { date: '2026-05-01', type: 'Abo',        desc: 'Schul-Abonnement Mai 2026',                            amount: 75,  status: 'bezahlt' },
+    { date: '2026-05-09', type: 'Vermittlung', desc: 'Stellvertretung: Englisch Sek II (Lara Hofer)',        amount: 115, status: 'bezahlt' },
+    { date: '2026-05-09', type: 'Vermittlung', desc: 'Stellvertretung: Mathematik Sek I (David Eberle)',     amount: 345, status: 'ausstehend' },
+    { date: '2026-04-28', type: 'Inserate',    desc: '+5 Inserate-Paket (April)',                            amount: 30,  status: 'bezahlt' },
+    { date: '2026-04-01', type: 'Abo',         desc: 'Schul-Abonnement April 2026',                          amount: 75,  status: 'bezahlt' },
+    { date: '2026-04-10', type: 'Vermittlung', desc: 'Stellvertretung: Sport Sek I (Reto Janett)',           amount: 230, status: 'bezahlt' },
+    { date: '2026-04-18', type: 'Vermittlung', desc: 'Stellvertretung: Biologie Sek I (Nora Willi)',         amount: 345, status: 'bezahlt' },
+    { date: '2026-04-22', type: 'Vermittlung', desc: 'Stellvertretung: Deutsch 5./6. Primar (Sina Capaul)', amount: 345, status: 'bezahlt' },
+  ];
+
+  const maxTotal = Math.max(...MONTHS.map(m => m.abo + m.inserate + m.vermittlung));
+  const totalThisMonth = MONTHS[5].abo + MONTHS[5].inserate + MONTHS[5].vermittlung;
+  const typeColor = { Abo: 'primary', Vermittlung: 'accent', Inserate: 'warn' };
+
+  return (
+    <SchoolShell active="/school/finances">
+      <AppTopbar title="Finanzen" sub="Abo, Vermittlungsgebühren, Inserate"/>
+      <div className="page fade-in">
+        <div className="page-header">
+          <div>
+            <div className="page-title">Finanzen</div>
+            <div className="page-sub">Übersicht aller Kosten und Transaktionen</div>
+          </div>
+          <Button variant="outline" icon="download" onClick={() => showToast('Export wird vorbereitet…')}>Exportieren</Button>
+        </div>
+
+        <div className="grid-4" style={{ marginBottom: 24 }}>
+          <KPI num="CHF 75" label="Abo / Monat" icon="check-circle" tone="success"/>
+          <KPI num={`CHF ${totalThisMonth}`} label="Mai 2026 gesamt" icon="trending-up" tone="primary"/>
+          <KPI num={`${insLeft}/${inserateLimit}`} label="Inserate verfügbar" icon="briefcase" tone={insLeft <= 2 ? 'warn' : 'accent'}/>
+          <KPI num="12.5 %" label="Vermittlungsgebühr" icon="zap" tone="accent"/>
+        </div>
+
+        <div className="card" style={{ padding: 24, marginBottom: 20 }}>
+          <div className="spread" style={{ marginBottom: 20 }}>
+            <div className="h-3">Kosten letzte 6 Monate</div>
+            <div className="row" style={{ gap: 16, fontSize: 11, color: 'var(--ink-3)' }}>
+              <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:10, background:'var(--primary)', borderRadius:2, display:'inline-block' }}/>Abo</span>
+              <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:10, background:'oklch(72% 0.13 75)', borderRadius:2, display:'inline-block' }}/>Inserate</span>
+              <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:10, background:'var(--accent)', borderRadius:2, display:'inline-block' }}/>Vermittlung</span>
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:10, alignItems:'flex-end', height:160 }}>
+            {MONTHS.map((m, i) => {
+              const total = m.abo + m.inserate + m.vermittlung;
+              const isCurrent = i === MONTHS.length - 1;
+              const barH = Math.max(12, Math.round(total / maxTotal * 128));
+              return (
+                <div key={m.m} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:5 }}>
+                  <div style={{ fontSize:10, fontWeight:600, color:'var(--ink-2)' }}>CHF {total}</div>
+                  <div style={{ width:'100%', height: barH, display:'flex', flexDirection:'column', gap:1, borderRadius:6, overflow:'hidden' }}>
+                    <div style={{ background:'var(--accent)', flex: m.vermittlung }}/>
+                    {m.inserate > 0 && <div style={{ background:'oklch(72% 0.13 75)', flex: m.inserate }}/>}
+                    <div style={{ background: isCurrent ? 'var(--primary)' : 'var(--primary-100)', flex: m.abo }}/>
+                  </div>
+                  <div className="t-tiny" style={{ fontWeight: isCurrent ? 700 : 400, color: isCurrent ? 'var(--primary)' : 'var(--ink-3)' }}>{m.m}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid-2" style={{ gap: 20, alignItems: 'flex-start', marginBottom: 20 }}>
+          <div className="card" style={{ padding: 24 }}>
+            <div className="h-3" style={{ marginBottom: 16 }}>Inserate-Kontingent Mai 2026</div>
+            <div className="spread" style={{ marginBottom: 6 }}>
+              <span style={{ fontSize: 13 }}>{inserateUsed} von {inserateLimit} verwendet</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: insLeft <= 2 ? 'var(--danger)' : 'var(--ink-1)' }}>{insLeft} verbleibend</span>
+            </div>
+            <div className="match-bar" style={{ marginBottom: 16 }}>
+              <div className="match-bar-fill" style={{ width:`${Math.round(inserateUsed/inserateLimit*100)}%`, background: inserateUsed >= inserateLimit ? 'var(--danger)' : insLeft <= 2 ? 'oklch(72% 0.13 75)' : 'var(--primary)' }}/>
+            </div>
+            <div className="col" style={{ gap: 8 }}>
+              <div className="row" style={{ padding:'10px 14px', background:'var(--surface-2)', borderRadius:10 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:600 }}>Schul-Abonnement</div>
+                  <div className="t-tiny">10 Inserate/Monat inklusive · CHF 75/Mt</div>
+                </div>
+                <Pill variant="success">Aktiv</Pill>
+              </div>
+              <div className="row" style={{ padding:'10px 14px', border:'1px solid var(--border)', borderRadius:10 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:600 }}>Zusatz-Paket kaufen</div>
+                  <div className="t-tiny">+5 Inserate · CHF 30.00 einmalig</div>
+                </div>
+                <Button variant="primary" size="sm" icon="plus" onClick={() => { setInserateUsed(n => Math.max(0, n - 5)); showToast('+5 Inserate hinzugefügt. CHF 30.00 wird verrechnet.'); }}>Kaufen</Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="card" style={{ padding: 24 }}>
+            <div className="h-3" style={{ marginBottom: 16 }}>Kostenaufschlüsselung Mai 2026</div>
+            <div className="col" style={{ gap: 0 }}>
+              {[
+                { label:'Schul-Abonnement', amount: 75,  desc:'CHF 75/Monat · automatisch verlängert' },
+                { label:'Inserate-Pakete',   amount: 0,   desc:'Keine Zusatz-Pakete diesen Monat' },
+                { label:'Vermittlungsgebühren', amount: 460, desc:'12.5 % von CHF 3 680 Lohnsumme (5 Einsätze)' },
+              ].map(item => (
+                <div key={item.label} className="spread" style={{ padding:'12px 0', borderBottom:'1px solid var(--border)' }}>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:600 }}>{item.label}</div>
+                    <div className="t-tiny">{item.desc}</div>
+                  </div>
+                  <div style={{ fontSize:14, fontWeight:700 }}>CHF {item.amount.toFixed(2)}</div>
+                </div>
+              ))}
+              <div className="spread" style={{ padding:'14px 0', fontWeight:700 }}>
+                <span style={{ fontSize:14 }}>Total Mai 2026</span>
+                <span style={{ fontSize:16 }}>CHF {totalThisMonth.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <div className="spread" style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)' }}>
+            <div className="h-3">Transaktionen</div>
+            <Button variant="ghost" size="sm" icon="download" onClick={() => showToast('Export wird vorbereitet…')}>CSV exportieren</Button>
+          </div>
+          <table className="tbl">
+            <thead><tr><th>Datum</th><th>Typ</th><th>Beschreibung</th><th>Betrag</th><th>Status</th></tr></thead>
+            <tbody>
+              {TRANSACTIONS.map((tx, i) => (
+                <tr key={i}>
+                  <td className="t-mono">{formatDate(tx.date)}</td>
+                  <td><Pill variant={typeColor[tx.type]}>{tx.type}</Pill></td>
+                  <td style={{ fontSize:13 }}>{tx.desc}</td>
+                  <td className="t-mono" style={{ fontWeight:600 }}>CHF {tx.amount.toFixed(2)}</td>
+                  <td><Pill variant={tx.status==='bezahlt'?'success':'warn'}>{tx.status}</Pill></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </SchoolShell>
+  );
+}
+
+Object.assign(window, { SchoolHome, SchoolShell, NewRequest, RequestDetail, SchoolRequests, SchoolBookings, SchoolHandover, SchoolFinances, KPI, Stars, MiniCalendar, RequestRow, MatchRow, TLItem });

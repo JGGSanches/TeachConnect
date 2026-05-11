@@ -7,7 +7,7 @@ function Router() {
 
   // route guard - if no user and route requires auth, send to login
   useEffect(() => {
-    const protectedPrefix = ['/school', '/teacher', '/leadership', '/admin'];
+    const protectedPrefix = ['/school', '/teacher', '/leadership', '/admin', '/settings'];
     const needsAuth = protectedPrefix.some(p => route.startsWith(p));
     if (needsAuth && !user) navigate('/login');
   }, [route, user]);
@@ -28,12 +28,14 @@ function Router() {
   if (route.startsWith('/school/request/')) return <RequestDetail id={route.split('/')[3]}/>;
   if (route === '/school/bookings') return <SchoolBookings/>;
   if (route === '/school/handover') return <SchoolHandover/>;
+  if (route === '/school/finances') return <SchoolFinances/>;
   if (route === '/school/teachers') return <SchoolPool/>;
   if (route === '/school/profile') return <SchoolProfile/>;
 
   // teacher
   if (route === '/teacher') return <TeacherHome/>;
   if (route === '/teacher/inbox') return <TeacherHome/>;
+  if (route === '/teacher/browse') return <TeacherBrowse/>;
   if (route === '/teacher/jobs') return <TeacherJobs/>;
   if (route.startsWith('/teacher/job/')) return <TeacherJobDetail id={route.split('/')[3]}/>;
   if (route === '/teacher/calendar') return <TeacherCalendar/>;
@@ -55,6 +57,9 @@ function Router() {
   if (route === '/admin/bookings') return <AdminBookings/>;
   if (route === '/admin/billing') return <AdminBilling/>;
   if (route.startsWith('/admin')) return <AdminHome/>;
+
+  // settings (role-aware)
+  if (route === '/settings' || route.startsWith('/settings/')) return <SettingsPage/>;
 
   return <Landing/>;
 }
@@ -228,6 +233,208 @@ function Field({ label, value }) {
       <div className="t-tiny" style={{ marginBottom: 4 }}>{label}</div>
       <input className="input" defaultValue={value}/>
     </div>
+  );
+}
+
+/* =============== SETTINGS PAGE =============== */
+function SettingsPage() {
+  const { user, showToast, inserateUsed, inserateLimit, setInserateUsed, navigate } = useStore();
+  const [tab, setTab] = useState('profil');
+  const [notifSettings, setNotifSettings] = useState({ push: true, email: true, sms: false, digest: true });
+  const [twofa, setTwofa] = useState(false);
+
+  const isTeacher = user?.role === 'teacher';
+  const isSchool = user?.role === 'school';
+
+  const tabs = [
+    { v: 'profil', l: 'Profil' },
+    { v: 'notif', l: 'Benachrichtigungen' },
+    { v: 'abo', l: 'Abo & Zahlung' },
+    { v: 'datenschutz', l: 'Datenschutz & Sicherheit' },
+    ...(isTeacher ? [{ v: 'availability', l: 'Verfügbarkeit' }] : []),
+  ];
+
+  const Shell = isTeacher ? TeacherShell : isSchool ? SchoolShell : LeadershipShell;
+  const shellActive = isTeacher ? '/teacher' : isSchool ? '/school' : '/leadership';
+
+  return (
+    <Shell active={shellActive}>
+      <AppTopbar title="Einstellungen" sub="Konto, Benachrichtigungen, Abo" search={false}/>
+      <div className="page fade-in" style={{ maxWidth: 860 }}>
+        <div className="page-header">
+          <div className="page-title">Einstellungen</div>
+        </div>
+
+        <div className="tabs" style={{ marginBottom: 24 }}>
+          {tabs.map(t => <div key={t.v} className={`tab ${tab===t.v?'active':''}`} onClick={() => setTab(t.v)}>{t.l}</div>)}
+        </div>
+
+        {tab === 'profil' && (
+          <div className="grid-2" style={{ gap: 20, alignItems: 'flex-start' }}>
+            <div className="card" style={{ padding: 24 }}>
+              <div className="h-3" style={{ marginBottom: 16 }}>Persönliche Angaben</div>
+              <div className="col" style={{ gap: 12 }}>
+                <Field label="Name" value={user?.name || ''}/>
+                <Field label="E-Mail" value={user?.email || 'anna@schule-davos.ch'}/>
+                <Field label="Telefon" value="+41 79 4xx xx xx"/>
+                {isTeacher && <Field label="Region" value="Chur"/>}
+                {isSchool && <Field label="Schule" value="Schule Davos Platz"/>}
+              </div>
+              <Button variant="primary" size="sm" style={{ marginTop: 16 }} onClick={() => showToast('Profil gespeichert.')}>Speichern</Button>
+            </div>
+            <div className="card" style={{ padding: 24 }}>
+              <div className="h-3" style={{ marginBottom: 16 }}>Passwort ändern</div>
+              <div className="col" style={{ gap: 12 }}>
+                <div className="field"><label className="label">Aktuelles Passwort</label><input className="input" type="password" placeholder="••••••••"/></div>
+                <div className="field"><label className="label">Neues Passwort</label><input className="input" type="password" placeholder="••••••••"/></div>
+                <div className="field"><label className="label">Bestätigen</label><input className="input" type="password" placeholder="••••••••"/></div>
+              </div>
+              <Button variant="outline" size="sm" style={{ marginTop: 16 }} onClick={() => showToast('Passwort wurde geändert.')}>Passwort ändern</Button>
+            </div>
+          </div>
+        )}
+
+        {tab === 'notif' && (
+          <div className="card" style={{ padding: 28 }}>
+            <div className="h-3" style={{ marginBottom: 20 }}>Benachrichtigungskanäle</div>
+            <div className="col" style={{ gap: 16 }}>
+              {[
+                { k: 'push',   l: 'Push-Benachrichtigungen',   d: 'Sofortige Meldungen für neue Anfragen und Bestätigungen' },
+                { k: 'email',  l: 'E-Mail-Benachrichtigungen', d: 'Tagesübersicht und wichtige Statusänderungen' },
+                { k: 'sms',    l: 'SMS bei Sehr dringend',     d: 'Nur für Anfragen mit Dringlichkeit "Sehr dringend"' },
+                { k: 'digest', l: 'Wöchentlicher Digest',      d: 'Zusammenfassung jeden Montag 07:00 Uhr' },
+              ].map(n => (
+                <div key={n.k} className="spread" style={{ padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{n.l}</div>
+                    <div className="t-muted" style={{ fontSize: 12, marginTop: 3 }}>{n.d}</div>
+                  </div>
+                  <button
+                    onClick={() => { setNotifSettings(s => ({ ...s, [n.k]: !s[n.k] })); showToast('Einstellung gespeichert.'); }}
+                    style={{ width: 44, height: 24, borderRadius: 12, border: 'none', cursor: 'pointer', background: notifSettings[n.k] ? 'var(--primary)' : 'var(--border-strong)', position: 'relative', transition: 'background 0.2s' }}>
+                    <span style={{ position: 'absolute', top: 3, left: notifSettings[n.k] ? 22 : 3, width: 18, height: 18, borderRadius: 9, background: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}/>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tab === 'abo' && (
+          <div className="col" style={{ gap: 20 }}>
+            <div className="card" style={{ padding: 28 }}>
+              <div className="spread" style={{ marginBottom: 16 }}>
+                <div>
+                  <div className="h-3">Aktuelles Abonnement</div>
+                  <div className="t-muted" style={{ marginTop: 4, fontSize: 13 }}>{isSchool ? 'Schul-Abonnement · CHF 75/Monat' : isTeacher ? 'Lehrpersonen-Konto · Kostenlos' : 'Schulleitung-Konto'}</div>
+                </div>
+                <Pill variant="success">Aktiv</Pill>
+              </div>
+              {isSchool && (
+                <div className="col" style={{ gap: 12 }}>
+                  <div className="spread" style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                    <div><div style={{ fontWeight: 600 }}>Inserate-Kontingent</div><div className="t-tiny">{inserateUsed}/{inserateLimit} verwendet (Mai 2026)</div></div>
+                    <div className="row" style={{ gap: 8 }}>
+                      <div className="match-bar" style={{ width: 80 }}>
+                        <div className="match-bar-fill" style={{ width:`${Math.round(inserateUsed/inserateLimit*100)}%`, background: inserateUsed >= inserateLimit ? 'var(--danger)' : 'var(--primary)' }}/>
+                      </div>
+                      <Button variant="outline" size="sm" icon="plus" onClick={() => { setInserateUsed(n => Math.max(0, n-5)); showToast('+5 Inserate hinzugefügt. CHF 30.00 wird verrechnet.'); }}>Paket kaufen</Button>
+                    </div>
+                  </div>
+                  <div className="spread" style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                    <div><div style={{ fontWeight: 600 }}>Nächste Rechnung</div><div className="t-tiny">CHF 75.00 am 1. Juni 2026</div></div>
+                    <Button variant="ghost" size="sm" onClick={() => navigate('/school/finances')}>Finanzen ansehen</Button>
+                  </div>
+                  <div className="spread" style={{ padding: '12px 0' }}>
+                    <div><div style={{ fontWeight: 600 }}>Zahlungsmethode</div><div className="t-tiny">IBAN CH56 0483 5012 3456 7800 9</div></div>
+                    <Button variant="outline" size="sm" icon="edit" onClick={() => showToast('Zahlungsmethode aktualisiert.')}>Ändern</Button>
+                  </div>
+                </div>
+              )}
+              {isTeacher && (
+                <div style={{ padding: '14px 0' }}>
+                  <p className="t-muted" style={{ fontSize: 13 }}>Als Lehrperson ist die Registrierung auf TeachConnect kostenlos. Vermittlungsgebühren werden direkt mit der Schule abgerechnet.</p>
+                </div>
+              )}
+            </div>
+            <div className="card" style={{ padding: 28 }}>
+              <div className="h-3" style={{ marginBottom: 14 }}>Konto kündigen</div>
+              <p className="t-muted" style={{ fontSize: 13, marginBottom: 14 }}>Dein Konto und alle zugehörigen Daten werden nach einer Frist von 30 Tagen unwiderruflich gelöscht.</p>
+              <Button variant="ghost" size="sm" onClick={() => showToast('Kündigungsanfrage gesendet. Wir melden uns per E-Mail.', 'error')}>Konto kündigen</Button>
+            </div>
+          </div>
+        )}
+
+        {tab === 'datenschutz' && (
+          <div className="col" style={{ gap: 20 }}>
+            <div className="card" style={{ padding: 28 }}>
+              <div className="h-3" style={{ marginBottom: 16 }}>Sicherheit</div>
+              <div className="col" style={{ gap: 12 }}>
+                <div className="spread" style={{ padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Zwei-Faktor-Authentifizierung</div>
+                    <div className="t-tiny">{twofa ? 'Aktiv · TOTP-App' : 'Nicht aktiviert – empfohlen'}</div>
+                  </div>
+                  <Button variant={twofa ? 'ghost' : 'outline'} size="sm" onClick={() => { setTwofa(v => !v); showToast(twofa ? '2FA deaktiviert.' : '2FA aktiviert.'); }}>{twofa ? 'Deaktivieren' : 'Aktivieren'}</Button>
+                </div>
+                <div className="spread" style={{ padding: '14px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Aktive Sitzungen</div>
+                    <div className="t-tiny">3 Geräte · zuletzt Safari / Mac · vor 2 Min.</div>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => showToast('Alle anderen Sitzungen beendet.')}>Andere abmelden</Button>
+                </div>
+                <div className="spread" style={{ padding: '14px 0' }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>Datenschutzerklärung</div>
+                    <div className="t-tiny">Zuletzt aktualisiert: Januar 2026</div>
+                  </div>
+                  <Button variant="ghost" size="sm" icon="eye" onClick={() => showToast('Datenschutzerklärung wird geöffnet.')}>Ansehen</Button>
+                </div>
+              </div>
+            </div>
+            <div className="card" style={{ padding: 28 }}>
+              <div className="h-3" style={{ marginBottom: 14 }}>Daten exportieren</div>
+              <p className="t-muted" style={{ fontSize: 13, marginBottom: 14 }}>Erhalte eine vollständige Kopie deiner Daten (DSGVO-konform) per E-Mail.</p>
+              <Button variant="outline" icon="download" onClick={() => showToast('Datenexport wird vorbereitet. Du erhältst eine E-Mail.')}>Meine Daten exportieren</Button>
+            </div>
+          </div>
+        )}
+
+        {tab === 'availability' && isTeacher && (
+          <div className="card" style={{ padding: 28 }}>
+            <div className="h-3" style={{ marginBottom: 14 }}>Verfügbarkeitseinstellungen</div>
+            <p className="t-muted" style={{ fontSize: 13, marginBottom: 20 }}>Steuere, wie Schulen dich finden und kontaktieren können.</p>
+            <div className="col" style={{ gap: 14 }}>
+              {[
+                { l: 'Im Pool sichtbar', d: 'Schulen können dein Profil im Lehrpersonen-Pool sehen' },
+                { l: 'Sofort-Anfragen erlauben', d: 'Sehr dringende Anfragen werden direkt an dich gesendet' },
+                { l: 'Wochenend-Einsätze', d: 'Anfragen für Samstag und Sonntag erhalten' },
+              ].map((x, i) => (
+                <div key={i} className="spread" style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600 }}>{x.l}</div>
+                    <div className="t-muted" style={{ fontSize: 12, marginTop: 3 }}>{x.d}</div>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => showToast('Einstellung aktualisiert.')}>Aktiv</Button>
+                </div>
+              ))}
+              <div className="spread" style={{ padding: '12px 0' }}>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>Maximale Reisedistanz</div>
+                  <div className="t-muted" style={{ fontSize: 12, marginTop: 3 }}>Anfragen ausserhalb dieses Radius werden gefiltert</div>
+                </div>
+                <div className="row" style={{ gap: 8 }}>
+                  <input type="range" min="5" max="100" defaultValue="30" style={{ width: 100 }}/>
+                  <span className="t-mono" style={{ fontWeight: 600 }}>30 km</span>
+                </div>
+              </div>
+            </div>
+            <Button variant="primary" size="sm" style={{ marginTop: 20 }} onClick={() => showToast('Verfügbarkeitseinstellungen gespeichert.')}>Speichern</Button>
+          </div>
+        )}
+      </div>
+    </Shell>
   );
 }
 
